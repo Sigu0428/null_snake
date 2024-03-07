@@ -1,0 +1,9 @@
+Tue Nov  7 10:57:04 2023
+WARNING: mju_openResource: unknown file 'RoboticsExercises/Lecture 9 - Grasping/Ur5_robot/Robot_scene.xml'
+
+Tue Nov  7 10:58:14 2023
+WARNING: mju_openResource: unknown file '/Ur5_robot/Robot_scene.xml'
+
+Wed Mar  6 17:23:55 2024
+WARNING: mju_openResource: unknown file 'Null space Project/Ur5_robot/Robot_scene.xml'
+
