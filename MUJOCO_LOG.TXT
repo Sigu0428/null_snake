@@ -7,3 +7,12 @@ WARNING: mju_openResource: unknown file '/Ur5_robot/Robot_scene.xml'
 Wed Mar  6 17:23:55 2024
 WARNING: mju_openResource: unknown file 'Null space Project/Ur5_robot/Robot_scene.xml'
 
+Fri Mar  8 08:49:27 2024
+WARNING: mju_openResource: unknown file '/Ur5_robot/Robot_scene.xml'
+
+Fri Mar  8 09:06:30 2024
+ERROR: mjv_updateSceneState: m->nu changed
+
+Fri Mar  8 09:32:02 2024
+ERROR: mjv_updateSceneState: m->nu changed
+

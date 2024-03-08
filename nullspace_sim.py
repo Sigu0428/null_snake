@@ -15,17 +15,16 @@ from spatialmath.base import q2r, r2x, rotx, roty, rotz
 class simulation:
 
   def __init__(self):
-    self.m = mujoco.MjModel.from_xml_path('Null space Project/Ur5_robot/Robot_scene.xml')
+    self.m = mujoco.MjModel.from_xml_path('./Ur5_robot/Robot_scene.xml')
     self.d = mujoco.MjData(self.m)
-    self.joints = [0 , -np.pi/2, -np.pi/2, -np.pi/2, np.pi/2,0,0 , -np.pi/2, -np.pi/2,0] #mujoco launch config
-    self.dt = 1/100
-    
-
+    self.jointTorques = [0 , 0,0,0,0,0,0,0,0,0] #simulation reads these and sends to motors at every time step
+    self.dt = 1/100 #control loop update rate
+  
     # Universal Robot UR5e kiematics parameters
     tool_matrix = sm.SE3.Trans(0., 0., 0.18) #adds tool offset to fkine automatically!!
     robot_base = sm.SE3.Trans(0,0,0)
 
-    self.q0=[0 , -np.pi/2, -np.pi/2, -np.pi/2, np.pi/2,0,0 , -np.pi/2, -np.pi/2,0]
+    self.q0=[0 , -np.pi/2, -np.pi/2, -np.pi/2, np.pi/2,0,0 , -np.pi/2, -np.pi/2,0] #home pose
     self.q00=[0 , 0, 0, 0, 0,0,0, 0, 0,0]
     self.robot = rtb.DHRobot( 
         [ 
@@ -48,8 +47,65 @@ class simulation:
     self.n=self.robot.n
     self.q0=self.q0[:self.n]
     self.T_EE_TCP=sm.SE3.Trans(0.0823,0,0)
+
+    #shared data for control thread
+    self.control_enabled=1
+    self.qref=self.q00
+    self.dqref=self.q00
+    
+
+
+  def launch_mujoco(self):
+    with mujoco.viewer.launch_passive(self.m, self.d) as viewer:
+      # Close the viewer automatically after 30 wall-seconds.
+
+      #initialize joint values to home before running sim
+      for i in range(0, self.n):
+        self.d.joint(f"joint{i+1}").qpos=self.q0[i]
+
+      start = time.time()
+      while viewer.is_running(): #simulation loop !
+        step_start = time.time()
+
+
+        #joint torque application loop
+        with self.jointLock: #moved to before mjstep to fix snap
+          if self.sendPositions: #assume this is mutex
+            for i in range(0, self.n):
+              self.d.actuator(f"actuator{i+1}").ctrl = self.jointTorques[i]
+            self.sendPositions = False
+    
+        # mj_step can be replaced with code that also evaluates
+        # a policy and applies a control signal before stepping the physics.
+        mujoco.mj_step(self.m, self.d)
+
+
+        viewer.sync()
+
+        # Rudimentary time keeping, will drift relative to wall clock.
+        time_until_next_step = self.m.opt.timestep - (time.time() - step_start)
+        if time_until_next_step > 0:
+          time.sleep(time_until_next_step)
+   
+  def setJointTorques(self,torques): #set joint torque vector which is applied to simulation from next time step
+    with self.jointLock:
+      for i in range(0, self.n):
+        self.jointTorques[i] = torques[i]
+      self.sendPositions = True
   
-  def getState(self):
+  def control_loop(self):
+    while True:
+      time.sleep(self.dt)
+      if self.control_enabled:
+        #CONTROLLER GOES HERE!
+        
+        self.setJointTorques([self.qref[0]+1000,1000,0,0,0,0,0,0,0,0])
+        
+        
+        
+
+
+  def getJointAngles(self):
     ## State of the simulater robot 
     qState=[]    
     for i in range(0, self.n):
@@ -75,105 +131,58 @@ class simulation:
     dist=np.linalg.norm(self.getObjState(name2)-self.getObjState(name1))
     return dist
 
-  def launch_mujoco(self):
-    with mujoco.viewer.launch_passive(self.m, self.d) as viewer:
-      # Close the viewer automatically after 30 wall-seconds.
-      start = time.time()
-      while viewer.is_running():
-        step_start = time.time()
-
-        # mj_step can be replaced with code that also evaluates
-        # a policy and applies a control signal before stepping the physics.
-        # with self.jointLock:
-        mujoco.mj_step(self.m, self.d)
-
-        with self.jointLock:
-          if self.sendPositions:
-            for i in range(0, self.n):
-              self.d.actuator(f"actuator{i+1}").ctrl = self.joints[i]
-            self.sendPositions = False
-    
-        viewer.sync()
-
-        # Rudimentary time keeping, will drift relative to wall clock.
-        time_until_next_step = self.m.opt.timestep - (time.time() - step_start)
-        if time_until_next_step > 0:
-          time.sleep(time_until_next_step)
-  
-  def sendJoint(self,join_values):
-    with self.jointLock:
-      for i in range(0, self.n):
-        self.joints[i] = join_values[i]
-      self.sendPositions = True
-  
-  def send2sim(self, trj):
-    # send trajectory step by step to simulation
-    for i in trj.q:
-      self.sendJoint(i)
-      time.sleep(self.dt)
-    self.curST = trj.q[len(trj.q)-1]  
-    return self.curST  
-  
   def start(self):
+    #launch simulation thread
     self.jointLock = Lock()
     self.sendPositions = False
     mujoco_thrd = Thread(target=self.launch_mujoco, daemon=True)
     mujoco_thrd.start()
-    
-
-    # send Robot to init congiguration
-    self.sendJoint(self.q0)
-    time.sleep(10)
-    print(self.robot.fkine(self.q0))
-    print(self.getObjFrame("ee_link2"))
-
-    while True: pass
-    print(self.getObjDistance("blockL04","ee_link2"))
-    
-    target="blockL04"
-
-    print("target frame")
-    print(self.getObjFrame(target))
-    
-
-     # conctruct the cartesian trajectory from current pose to block
-    print("current EE")
-    T_world_EE=self.robot.fkine(self.getState())
-    print(T_world_EE)    
-
-
-
-    time.sleep(5)
-    T_goal=self.getObjFrame(target)#T_world_ee*T_ee_block
-    print("target")
-    #
-    T_goal=T_goal*self.T_EE_TCP.inv() #account for tool
-    print(T_goal)
-    #create interpolated trajectory with 100 steps
-    Trj=rtb.ctraj(T_world_EE,T_goal,100)
-
-    qik = self.robot.ikine_LM(Trj, q0=self.getState()) #get joint trajectory
-
-    
-    for i in qik.q:
-      self.sendJoint(i)
-      time.sleep(0.1)
-
-    #q_ik = self.robot.ikine_LM(T_goal, q0=self.getState())
-    #self.sendJoint(q_ik.q)
-
-    print("final EE frame")
-    print(self.robot.fkine(self.getState()))
-
-    #while True:
-    #  time.sleep(2)
-    #  print(self.getObjDistance("blockL01","wrist_3_link2")) #dist from block to lower wrist 3
-
-    #self.sendJoint([0,0,0,-np.pi/2,0,0,0,-np.pi/2,0,0,0,0])
-    print("Press any key to exit")
-    input()
-    
+    control_thrd = Thread(target=self.control_loop,daemon=True) #control loop for commanding torques
+    control_thrd.start()
 
 if __name__ == "__main__":
-  simulation().start() 
+  sim=simulation()
+  sim.start() 
+
+  time.sleep(5)
+  sim.control_enabled=0
+  time.sleep(2)
+  sim.setJointTorques([0,0,0,0,0,0,0,0,0,0]) #change torques for controller
+  time.sleep(5)
+  #check fkine vs mujoco EE frames
+  print(sim.robot.fkine(sim.getJointAngles()))
+  print(sim.getObjFrame("ee_link2"))
+
+
+
+  while True: pass
+
+  #kinematic trajectory example--------------------
+  #target="blockL06"
+  #print("target frame")
+  #print(self.getObjFrame(target))
+
+  # conctruct the cartesian trajectory from current pose to block
+  #print("current EE")
+  #T_world_EE=self.robot.fkine(self.getJointAngles())
+  #print(T_world_EE)    
+
+  #time.sleep(5)
+  #T_goal=self.getObjFrame(target)
+  #print("target")
+  #T_goal=T_goal*self.T_EE_TCP.inv() #account for tool (can be done in fkine instead if toolframe is added)
+  #print(T_goal)
+  #create interpolated trajectory with 100 steps
+  #Trj=rtb.ctraj(T_world_EE,T_goal,100)
+
+  #qik = self.robot.ikine_LM(Trj, q0=self.getJointAngles()) #get joint trajectory
   
+  #for i in qik.q:
+  #  self.sendJoint(i)
+  #  time.sleep(0.1)
+
+
+  #print("final EE frame")
+  #print(self.robot.fkine(self.getJointAngles()))
+  #kinematic trajectory example--------------------
+ 

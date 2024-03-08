@@ -170,17 +170,17 @@
   </worldbody>
 
   <!--sensor> CHANGE TO MOTOR WHEN DOING TORQUE CONTROL </sensor-->
-  <actuator>      <!--        ctrl input clamp........................        -->
-    <motor name='actuator1'  joint="joint1" />
-    <motor name='actuator2' joint="joint2" />
-    <motor name='actuator3' joint="joint3" />
-    <motor name='actuator4' joint="joint4" />
-    <motor name='actuator5' joint="joint5" />
-    <motor name='actuator6' joint="joint6" />
-    <motor name='actuator7' joint="joint7" />
-    <motor name='actuator8' joint="joint8" />
-    <motor name='actuator9' joint="joint9" />
-    <motor name='actuator10' joint="joint10" />
+  <actuator> 
+    <position name='actuator1' ctrllimited="true" ctrlrange="-3.14159 3.14159" joint="joint1" kp="2000"/>
+    <position name='actuator2' ctrllimited="true" ctrlrange="-3.14159 3.14159" joint="joint2" kp="4000"/>
+    <position name='actuator3' ctrllimited="true" ctrlrange="-3.14159 3.14159" joint="joint3" kp="3000"/>
+    <position name='actuator4' ctrllimited="true" ctrlrange="-3.14159 3.14159" joint="joint4" kp="3000"/>
+    <position name='actuator5' ctrllimited="true" ctrlrange="-3.14159 3.14159" joint="joint5" kp="3000"/>
+    <position name='actuator6' ctrllimited="true" ctrlrange="-3.14159 3.14159" joint="joint6" kp="1000"/>
+    <position name='actuator7' ctrllimited="true" ctrlrange="-3.14159 3.14159" joint="joint7" kp="1000"/>
+    <position name='actuator8' ctrllimited="true" ctrlrange="-3.14159 3.14159" joint="joint8" kp="1000"/>
+    <position name='actuator9' ctrllimited="true" ctrlrange="-3.14159 3.14159" joint="joint9" kp="1000"/>
+    <position name='actuator10' ctrllimited="true" ctrlrange="-3.14159 3.14159" joint="joint10" kp="1000"/>
 
   </actuator>
 
@@ -192,7 +192,6 @@
 		<force name="TcpF" site="UR/EE" />
 		<torque name="TcpT" site="UR/EE"/>
   </sensor-->
-
 
 
 </mujoco>
