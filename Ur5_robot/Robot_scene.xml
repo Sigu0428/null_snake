@@ -63,5 +63,5 @@
    
   </worldbody>
 
-  <include file="UR5e.xml"/>
+  <include file="ur5e.xml"/>
 </mujoco>
