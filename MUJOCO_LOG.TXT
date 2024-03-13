@@ -16,3 +16,51 @@ ERROR: mjv_updateSceneState: m->nu changed
 Fri Mar  8 09:32:02 2024
 ERROR: mjv_updateSceneState: m->nu changed
 
+Wed Mar 13 15:20:49 2024
+ERROR: mjv_updateSceneState: m->nu changed
+
+Wed Mar 13 15:53:51 2024
+WARNING: Nan, Inf or huge value in QACC at DOF 36. The simulation is unstable. Time = 0.1100.
+
+Wed Mar 13 15:53:54 2024
+WARNING: Nan, Inf or huge value in CTRL at ACTUATOR 1. The simulation is unstable. Time = 0.2500.
+
+Wed Mar 13 15:53:55 2024
+WARNING: Nan, Inf or huge value in CTRL at ACTUATOR 1. The simulation is unstable. Time = 0.2500.
+
+Wed Mar 13 15:54:05 2024
+WARNING: Nan, Inf or huge value in QACC at DOF 44. The simulation is unstable. Time = 0.1800.
+
+Wed Mar 13 15:54:08 2024
+WARNING: Nan, Inf or huge value in CTRL at ACTUATOR 5. The simulation is unstable. Time = 0.2400.
+
+Wed Mar 13 16:02:51 2024
+WARNING: Nan, Inf or huge value in QACC at DOF 36. The simulation is unstable. Time = 0.1200.
+
+Wed Mar 13 16:02:52 2024
+WARNING: Nan, Inf or huge value in QVEL at DOF 3. The simulation is unstable. Time = 0.0300.
+
+Wed Mar 13 16:02:52 2024
+WARNING: Nan, Inf or huge value in QACC at DOF 36. The simulation is unstable. Time = 0.0300.
+
+Wed Mar 13 16:06:09 2024
+ERROR: mjv_updateSceneState: m->nu changed
+
+Wed Mar 13 16:08:08 2024
+ERROR: mjv_updateSceneState: m->nu changed
+
+Wed Mar 13 16:09:12 2024
+ERROR: mjv_updateSceneState: m->nu changed
+
+Wed Mar 13 16:10:00 2024
+ERROR: mjv_updateSceneState: m->nu changed
+
+Wed Mar 13 16:12:43 2024
+ERROR: mjv_updateSceneState: m->nu changed
+
+Wed Mar 13 16:13:43 2024
+ERROR: mjv_updateSceneState: m->nu changed
+
+Wed Mar 13 16:15:05 2024
+ERROR: mjv_updateSceneState: m->nu changed
+

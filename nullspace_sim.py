@@ -17,14 +17,14 @@ class simulation:
   def __init__(self):
     self.m = mujoco.MjModel.from_xml_path('./Ur5_robot/Robot_scene.xml')
     self.d = mujoco.MjData(self.m)
-    self.jointTorques = [0 , 0,0,0,0,0,0,0,0,0] #simulation reads these and sends to motors at every time step
+    self.jointTorques = [0 ,0,0,0,0,0,0,0,0,0] #simulation reads these and sends to motors at every time step
     self.dt = 1/100 #control loop update rate
   
     # Universal Robot UR5e kiematics parameters
     tool_matrix = sm.SE3.Trans(0., 0., 0.18) #adds tool offset to fkine automatically!!
     robot_base = sm.SE3.Trans(0,0,0)
 
-    self.q0=[0 , -np.pi/2, -np.pi/2, -np.pi/2, np.pi/2,0,0 , -np.pi/2, -np.pi/2,0] #home pose
+    self.q0=[0 , -np.pi/4, 0, 0, 0,np.pi,0 , 0, 0,0] #home pose
     self.q00=[0 , 0, 0, 0, 0,0,0, 0, 0,0]
     self.robot = rtb.DHRobot( 
         [ 
@@ -50,7 +50,7 @@ class simulation:
 
     #shared data for control thread
     self.control_enabled=1
-    self.qref=self.q00
+    self.qref=self.q0
     self.dqref=self.q00
     
 
@@ -93,24 +93,46 @@ class simulation:
         self.jointTorques[i] = torques[i]
       self.sendPositions = True
   
-  def control_loop(self):
+  def control_loop(self, debug=False):
     while True:
       time.sleep(self.dt)
       if self.control_enabled:
         #CONTROLLER GOES HERE!
-        
-        self.setJointTorques([self.qref[0]+1000,1000,0,0,0,0,0,0,0,0])
-        
-        
-        
 
+        # PD controller with gravity compensation
+        Kp = 1500
+        Kd = 50
+
+        q = np.array(self.getJointAngles())
+        dq = np.array(self.getJointVelocities())
+
+        q_tilde = np.array(self.qref) - q
+        dq_tilde = np.array(self.dqref) - dq
+
+        grav = self.robot.gravload(self.getJointAngles()) #gravity compensation
+
+        u = Kp*q_tilde + Kd*dq_tilde + grav
+
+
+        self.setJointTorques(u)
+        
 
   def getJointAngles(self):
     ## State of the simulater robot 
     qState=[]    
     for i in range(0, self.n):
-      qState.append(float(self.d.joint(f"joint{i+1}").qpos)) 
+      qState.append(float(self.d.joint(f"joint{i+1}").qpos[0])) 
+      
     return qState
+  
+  def getJointVelocities(self):
+    ## State of the simulater robot 
+    qState=[]    
+    for i in range(0, self.n):
+      qState.append(float(self.d.joint(f"joint{i+1}").qvel[0])) 
+      
+    return qState
+
   
   def getObjState(self, name):
     ## State of the simulater robot    
@@ -130,6 +152,15 @@ class simulation:
     ## State of the simulater robot    
     dist=np.linalg.norm(self.getObjState(name2)-self.getObjState(name1))
     return dist
+  
+  def fucking_around_with_ref(self):
+    # [0 , -np.pi/4, 0, 0, 0,np.pi,0 , 0, 0,0]
+    i = 7
+    while True:
+      time.sleep(0.01)
+      self.qref[i] += 0.01
+      if self.qref[i] > np.pi*2:
+        self.qref[i] == 0
 
   def start(self):
     #launch simulation thread
@@ -140,15 +171,14 @@ class simulation:
     control_thrd = Thread(target=self.control_loop,daemon=True) #control loop for commanding torques
     control_thrd.start()
 
+    control_thrd = Thread(target=self.fucking_around_with_ref,daemon=True) #another thread that changes the values of qref for fun
+    control_thrd.start()
+
 if __name__ == "__main__":
   sim=simulation()
   sim.start() 
 
-  time.sleep(5)
-  sim.control_enabled=0
-  time.sleep(2)
-  sim.setJointTorques([0,0,0,0,0,0,0,0,0,0]) #change torques for controller
-  time.sleep(5)
+  time.sleep(10)
   #check fkine vs mujoco EE frames
   print(sim.robot.fkine(sim.getJointAngles()))
   print(sim.getObjFrame("ee_link2"))
