@@ -103,7 +103,38 @@ class simulation:
         
         
         
+  def artificial_repulsion_field_controller(self, q):
+    J = self.jacob_revol(9, q)
+    u = J.T@np.array([5000, 5000, 5000, 0, 0, 0]).T
+    u_proj = self.getNullProjMat(q)@u
+    return u_proj
 
+  def jacob_revol(self, l, q):
+    T_0_l = self.robot.A(l, q).A
+    rl = self.robot[l].r[..., np.newaxis]
+    rl = np.row_stack((rl, 1))
+    p_0_ll = T_0_l@rl
+    p_0_ll = p_0_ll[0:3] / p_0_ll[3]
+    
+    Jp = np.zeros((3, self.n))
+    Jo = np.zeros((3, self.n))
+    for i in range(l):
+      T_0_i = self.robot.A(i, q).A
+      zi = T_0_i[0:3, 3]
+      ri = self.robot[l].r[..., np.newaxis]
+      ri = np.row_stack((ri, 1))
+      p_0_li = T_0_i@ri
+      p_0_li = p_0_li[0:3] / p_0_li[3]
+      Jo[:, i] = zi
+      Jp[:, i] = np.cross(zi, np.squeeze(p_0_ll - p_0_li))
+    return np.row_stack((Jo, Jp))
+
+  def getNullProjMat(self, q):
+    Je = self.robot.jacobe(q)
+    Je_inv = np.linalg.pinv(Je)
+    M = 0 # need to calculate this
+    N = M@(np.eye(self.n) - Je_inv@Je)@np.linalg.inv(M)
+    return N
 
   def getJointAngles(self):
     ## State of the simulater robot 
