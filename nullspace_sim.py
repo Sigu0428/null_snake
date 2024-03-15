@@ -10,7 +10,8 @@ import spatialmath as sm
 import numpy as np
 import matplotlib.pyplot as plt
 from spatialmath import UnitQuaternion
-from spatialmath.base import q2r, r2x, rotx, roty, rotz
+from spatialmath.base import q2r, r2x, rotx, roty, rotz,tr2eul,tr2rt
+from scipy.spatial.transform import  Rotation
 
 class simulation:
 
@@ -96,8 +97,9 @@ class simulation:
     self.control_enabled=1
     self.qref=self.q0
     self.dqref=self.q00
-    
-
+    self.tool_name="ee_link2"
+    self.xref=np.zeros(6)
+    self.Tref=self.robot.fkine(self.qref)
 
   def launch_mujoco(self):
     with mujoco.viewer.launch_passive(self.m, self.d) as viewer:
@@ -107,10 +109,12 @@ class simulation:
       for i in range(0, self.n):
         self.d.joint(f"joint{i+1}").qpos=self.q0[i]
 
+      
+
       start = time.time()
       while viewer.is_running(): #simulation loop !
         step_start = time.time()
-
+        
 
         #joint torque application loop
         with self.jointLock: #moved to before mjstep to fix snap
@@ -130,7 +134,42 @@ class simulation:
         time_until_next_step = self.m.opt.timestep - (time.time() - step_start)
         if time_until_next_step > 0:
           time.sleep(time_until_next_step)
-   
+
+  def launch_mujoco_with_control(self):
+    with mujoco.viewer.launch_passive(self.m, self.d) as viewer:
+      # Close the viewer automatically after 30 wall-seconds.
+
+      #initialize joint values to home before running sim
+      for i in range(0, self.n):
+        self.d.joint(f"joint{i+1}").qpos=self.q0[i]
+
+      control_thrd = Thread(target=self.control_loop,daemon=True) #control loop for commanding torques
+      control_thrd.start()
+
+      start = time.time()
+      while viewer.is_running(): #simulation loop !
+        step_start = time.time()
+        
+
+        #joint torque application loop
+        with self.jointLock: #moved to before mjstep to fix snap
+          if self.sendPositions: #assume this is mutex
+            for i in range(0, self.n):
+              self.d.actuator(f"actuator{i+1}").ctrl = self.jointTorques[i]
+            self.sendPositions = False
+    
+        # mj_step can be replaced with code that also evaluates
+        # a policy and applies a control signal before stepping the physics.
+        mujoco.mj_step(self.m, self.d)
+
+
+        viewer.sync()
+
+        # Rudimentary time keeping, will drift relative to wall clock.
+        time_until_next_step = self.m.opt.timestep - (time.time() - step_start)
+        if time_until_next_step > 0:
+          time.sleep(time_until_next_step)
+    
   def setJointTorques(self,torques): #set joint torque vector which is applied to simulation from next time step
     with self.jointLock:
       for i in range(0, self.n):
@@ -138,28 +177,64 @@ class simulation:
       self.sendPositions = True
   
   def control_loop(self, debug=False):
+
     while True:
       time.sleep(self.dt)
       if self.control_enabled:
         #CONTROLLER GOES HERE!
+        self.opSpacePDGControlLoop()
 
-        # PD controller with gravity compensation
-        Kp = 1500
-        Kd = 50
-
-        q = np.array(self.getJointAngles())
-        dq = np.array(self.getJointVelocities())
-
-        q_tilde = np.array(self.qref) - q
-        dq_tilde = np.array(self.dqref) - dq
-
-        grav = self.robot.gravload(self.getJointAngles()) #gravity compensation
-
-        u = Kp*q_tilde + Kd*dq_tilde + grav
-
-
-        self.setJointTorques(u)
         
+  def jointSpacePDGControlLoop(self):
+    # PD controller with gravity compensation
+    Kp = 1500
+    Kd = 50
+
+    q = np.array(self.getJointAngles())
+    dq = np.array(self.getJointVelocities())
+
+    q_tilde = np.array(self.qref) - q
+    dq_tilde = np.array(self.dqref) - dq
+
+    grav = self.robot.gravload(self.getJointAngles()) #gravity compensation
+
+    u = Kp*q_tilde + Kd*dq_tilde + grav
+
+    self.setJointTorques(u)
+
+  def opSpacePDGControlLoop(self):
+    Kp=np.eye(7)
+    Kp[:3,:3]=np.eye(3)*2000 #translational gain
+    Kp[3:,3:]=np.eye(4)*100 #orientational gain
+    Kd=np.eye(7)*100
+
+    # get tool orientation quaternion and analytical jacobian
+    JA,q_ee=self.getAnalyticalJacobian()
+    T_ee=np.array(self.getObjFrame(self.tool_name))
+
+    # relative translation 
+    x_tilde=np.zeros(7)
+  
+    x_tilde[:3]=np.array(self.Tref)[:3,3]-T_ee[:3,3]
+    
+    # relative quaternion orientation:
+    q_ref=UnitQuaternion(self.Tref)
+    #qref=q*qee
+    q_rel=q_ee.conj()*q_ref
+    x_tilde[3:]=q_rel #q_ref.vec-q_ee
+
+    gq= self.robot.gravload(self.getJointAngles())
+    dq = np.array(self.getJointVelocities())
+
+
+    print(gq)
+    u=gq+JA.T@Kp@x_tilde-JA.T@Kd@JA@dq
+    
+    self.setJointTorques(u)
+    
+    #print((np.linalg.norm(x_tilde),(np.linalg.norm(self.jointTorques))))
+
+   
 
   def getJointAngles(self):
     ## State of the simulater robot 
@@ -197,6 +272,28 @@ class simulation:
     dist=np.linalg.norm(self.getObjState(name2)-self.getObjState(name1))
     return dist
   
+  def getAnalyticalJacobian(self):
+    #get ee frame orientation as quaternion
+    obj_q = self.d.body(self.tool_name).xquat
+    q_ee=UnitQuaternion(obj_q).vec
+
+    #analytical jac transform
+    xi0=q_ee[0]; xi1=q_ee[1];xi2=q_ee[2];xi3=q_ee[3]
+
+    H=np.array([[-xi1,xi0,-xi3,xi2],
+                [-xi2,xi3,xi0,-xi1],
+                [-xi3,-xi2,xi1,xi0]])
+    
+    TA_inv=np.zeros((7,6)) #maybe we have to use np.inv here 
+    TA_inv[3:,3:]=0.5*H.T
+    TA_inv[:3,:3]=np.eye(3)
+
+    #get ee jacobian
+    Je = self.robot.jacobe(self.getJointAngles())
+    #transform to analytical
+    Ja = TA_inv@Je
+    return Ja,q_ee
+  
   def fucking_around_with_ref(self):
     # [0 , -np.pi/4, 0, 0, 0,np.pi,0 , 0, 0,0]
     i = 7
@@ -210,13 +307,12 @@ class simulation:
     #launch simulation thread
     self.jointLock = Lock()
     self.sendPositions = False
-    mujoco_thrd = Thread(target=self.launch_mujoco, daemon=True)
+    mujoco_thrd = Thread(target=self.launch_mujoco_with_control, daemon=True)
     mujoco_thrd.start()
-    control_thrd = Thread(target=self.control_loop,daemon=True) #control loop for commanding torques
-    control_thrd.start()
+    #control_thrd = Thread(target=self.control_loop,daemon=True) #control loop for commanding torques
+    #control_thrd.start()
 
-    control_thrd = Thread(target=self.fucking_around_with_ref,daemon=True) #another thread that changes the values of qref for fun
-    control_thrd.start()
+
 
 if __name__ == "__main__":
   sim=simulation()
@@ -225,11 +321,26 @@ if __name__ == "__main__":
   print(sim.robot.gravload(q))
 
 
-  time.sleep(10)
+  time.sleep(5)
+  
+  
+
+
+  
   #check fkine vs mujoco EE frames
+<<<<<<< HEAD
   print(sim.robot.fkine(sim.getJointAngles()))
   
   print(sim.getObjFrame("ee_link2"))
+=======
+  while True:
+    #print("--------------------------------")
+    #print(sim.Tref)
+    #print(sim.getObjFrame("ee_link2"))
+
+  
+    time.sleep(5)
+>>>>>>> c9ea1b5656bd89bc05168624d5fb749512945e2c
 
 
 
