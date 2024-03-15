@@ -258,9 +258,6 @@ URRobot::URRobot(RobotType type)
 
     }
 
-
-
-
     for (size_t i = 0; i < N; i++)
     {
         for (size_t j = 0; j < 3; j++)
