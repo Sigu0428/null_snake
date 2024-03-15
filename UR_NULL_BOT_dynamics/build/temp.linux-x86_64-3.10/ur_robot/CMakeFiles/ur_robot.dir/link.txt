@@ -1,0 +1,1 @@
+/usr/bin/c++ -fPIC -g -shared -Wl,-soname,ur_robot.cpython-310-x86_64-linux-gnu.so -o ../../lib.linux-x86_64-3.10/ur_robot.cpython-310-x86_64-linux-gnu.so CMakeFiles/ur_robot.dir/src/main_10_links.cpp.o CMakeFiles/ur_robot.dir/src/ur_robot.cpp.o CMakeFiles/ur_robot.dir/src/ur_robot_constructor.cpp.o CMakeFiles/ur_robot.dir/src/ur_robot_wrapper.cpp.o 

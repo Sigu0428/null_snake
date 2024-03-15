@@ -5,19 +5,20 @@ np.set_printoptions(precision=6, suppress=True)
 import ur_robot
 
 
+N = 10
 
-q = np.array([[1.0000,   1.0472,    1.0472, 1.0472, 1.0472, 1.0472]]).T
-dq = np.array([[1.0000,   1.0472,    1.0472, 1.0472, 1.0472, 1.0472]]).T
-ddq = np.array([[1.0000,   1.0472,    1.0472, 1.0472, 1.0472, 1.0472]]).T
+q =     np.array([1.0000,   1.0472,    1.0472, 1.0472, 1.0472, 1.0472, 1.0000,   1.0472,    1.0472, 1.0472]).T
+dq =    np.array([1.0000,   1.0472,    1.0472, 1.0472, 1.0472, 1.0472, 1.0000,   1.0472,    1.0472, 1.0472]).T
+ddq =   np.array([1.0000,   1.0472,    1.0472, 1.0472, 1.0472, 1.0472, 1.0000,   1.0472,    1.0472, 1.0472]).T
 
 print(q)
 print(dq)
 print(ddq)
 
-robot = ur_robot.URRobot(ur_robot.RobotType.UR3e)
+robot = ur_robot.URRobot(ur_robot.RobotType.NullBot)
 print(robot)
 
-grav = robot.gravity(q).reshape((6,1))
+grav = robot.gravity(q).reshape((N,1))
 print("grav\n", grav)
 
 jac = robot.jacobian(q)

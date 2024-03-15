@@ -8,7 +8,7 @@ int main(int, char**)
 {
     std::cout << "Hello, world!\n";
     
-    URRobot robot(UR53_NULL_BOT);
+    URRobot robot(NullBot);
 
     // double q[] = { 1.0000,   1.0472,    1.0472};
     // double dq[] = { 1.0000,   1.0472,    1.0472};
@@ -16,7 +16,6 @@ int main(int, char**)
     const int N = 10;
 
     Eigen::Matrix<double, N, 1> q, dq, ddq;
-
 
 
     q <<    1.0000,   1.0472,    1.0472, 1.0472, 1.0472, 1.0472, 1.0000,   1.0472,    1.0472, 1.0472;

@@ -1,0 +1,3 @@
+Fri Mar 15 10:25:38 2024
+WARNING: mju_openResource: unknown file './Ur5_robot/Robot_scene.xml'
+

@@ -11,7 +11,8 @@ PYBIND11_MODULE(ur_robot, m)
 
     py::enum_<RobotType>(m, "RobotType")
         .value("UR3e", RobotType::UR3e)
-        .value("UR5e", RobotType::UR5e);
+        .value("UR5e", RobotType::UR5e)
+        .value("NullBot", RobotType::UR5e);
 
     py::class_<URRobot>(m, "URRobot")
         .def(py::init<>())

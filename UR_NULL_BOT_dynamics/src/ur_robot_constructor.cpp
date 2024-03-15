@@ -157,7 +157,7 @@ URRobot::URRobot(RobotType type)
             }
         };
     }
-    else if (type == UR53_NULL_BOT){
+    else if (type == NullBot){
         a2_ = -0.425;
         a3_ = -0.3922;
 

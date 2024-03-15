@@ -4,8 +4,8 @@
 
 
 # Configuration directories and files
-SourceDirectory: /home/peter/OneDrive/Skrivebord/Uni stuff/2. Masters/2. masters_OBSIDIAN/Advanced robot control/robot_project/ur-dynamics-cpp-master
-BuildDirectory: /home/peter/OneDrive/Skrivebord/Uni stuff/2. Masters/2. masters_OBSIDIAN/Advanced robot control/robot_project/ur-dynamics-cpp-master/build/temp.linux-x86_64-3.10/ur_robot
+SourceDirectory: /home/peter/OneDrive/Skrivebord/Uni stuff/2. Masters/2. masters_OBSIDIAN/robot Project/null_snake/UR_NULL_BOT_dynamics
+BuildDirectory: /home/peter/OneDrive/Skrivebord/Uni stuff/2. Masters/2. masters_OBSIDIAN/robot Project/null_snake/UR_NULL_BOT_dynamics/build/temp.linux-x86_64-3.10/ur_robot
 
 # Where to place the cost data store
 CostDataFile: 
@@ -26,7 +26,7 @@ SubmitURL: http://
 NightlyStartTime: 00:00:00 EDT
 
 # Commands for the build/test/submit cycle
-ConfigureCommand: "/usr/bin/cmake" "/home/peter/OneDrive/Skrivebord/Uni stuff/2. Masters/2. masters_OBSIDIAN/Advanced robot control/robot_project/ur-dynamics-cpp-master"
+ConfigureCommand: "/usr/bin/cmake" "/home/peter/OneDrive/Skrivebord/Uni stuff/2. Masters/2. masters_OBSIDIAN/robot Project/null_snake/UR_NULL_BOT_dynamics"
 MakeCommand: /usr/bin/cmake --build . --config "${CTEST_CONFIGURATION_TYPE}" -- -i
 DefaultCTestConfigurationType: Release
 

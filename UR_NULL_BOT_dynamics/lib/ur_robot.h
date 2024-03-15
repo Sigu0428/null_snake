@@ -7,7 +7,7 @@ enum RobotType
 {
 	UR3e,
 	UR5e,
-	UR53_NULL_BOT
+	NullBot
 };
 
 

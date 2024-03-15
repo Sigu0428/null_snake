@@ -1,0 +1,15 @@
+Metadata-Version: 2.1
+Name: ur-robot
+Version: 0.0.1
+Summary: UNKNOWN
+Home-page: UNKNOWN
+Author: ur_robot
+Author-email: eld@mmmi.sdu.dk
+License: UNKNOWN
+Platform: UNKNOWN
+Requires-Python: >=3.7
+Provides-Extra: test
+License-File: LICENSE
+
+UNKNOWN
+
