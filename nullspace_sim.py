@@ -101,19 +101,14 @@ class simulation:
         
         self.setJointTorques([self.qref[0]+1000,1000,0,0,0,0,0,0,0,0])
         
-  def force_mag_func(x, Fmax_param, d_param, Fd_param): 
-    # function f(x) = 1 / (e^a(x^2)) has gaussian like shape
-    # x is the input distance between the objects
-    # F_max is desired force at zero distance
-    # F_d is the desired force at some distance d                                       
-    #
+  def repulsion_force_func(x, Fmax_param, d_param, Fd_param): 
     #       │                                
-    # F_max-+-....                                      
-    #       │     ....                                  
-    #       │         ..                                
+    # F_max-+-....                x: input distance to obstacle                      
+    #       │     ....            F_max: force at zero distance                      
+    #       │         ..          F_d: force at distance d                       
     #       │           ..                               
     #       │             ..                            
-    #       │               ..                          
+    #       │               ..  <--- f(x)=1/exp(x^2)    (gaussian)                 
     #       │                 ...                       
     # F_d  -+-                   ....                          
     #       │                        .....                     
@@ -130,24 +125,24 @@ class simulation:
     u_proj = self.getNullProjMat(q)@u
     return u_proj
 
-  def jacob_revol(self, l, q):
-    T_0_l = self.robot.A(l, q).A
-    rl = self.robot[l].r[..., np.newaxis]
-    rl = np.row_stack((rl, 1))
-    p_0_ll = T_0_l@rl
-    p_0_ll = p_0_ll[0:3] / p_0_ll[3]
+  def getJacobRevol(self, j, q): # compute jacobian for arbitrary joint j in configuration q (only works for revolute joints)
+    T_0_l = self.robot.A(j, q).A
+    rj = self.robot[j].r[..., np.newaxis]
+    rj = np.row_stack((rj, 1))
+    p_0_lj = T_0_l@rj
+    p_0_lj = p_0_lj[0:3] / p_0_lj[3]
     
     Jp = np.zeros((3, self.n))
     Jo = np.zeros((3, self.n))
-    for i in range(l):
+    for i in range(j):
       T_0_i = self.robot.A(i, q).A
       zi = T_0_i[0:3, 3]
-      ri = self.robot[l].r[..., np.newaxis]
+      ri = self.robot[j].r[..., np.newaxis]
       ri = np.row_stack((ri, 1))
       p_0_li = T_0_i@ri
       p_0_li = p_0_li[0:3] / p_0_li[3]
       Jo[:, i] = zi
-      Jp[:, i] = np.cross(zi, np.squeeze(p_0_ll - p_0_li))
+      Jp[:, i] = np.cross(zi, np.squeeze(p_0_lj - p_0_li))
     return np.row_stack((Jo, Jp))
 
   def getNullProjMat(self, q): # dynamic projection matrix N, such that tau = tau_main + N@tau_second
