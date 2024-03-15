@@ -215,9 +215,9 @@ class simulation:
     q_rel=q_ee.conj()*q_ref
     x_tilde[3:]=q_rel #q_ref.vec-q_ee
 
-    # gq= self.robot.gravload(self.getJointAngles())
+    gq= self.robot.gravload(self.getJointAngles())
 
-    gq = self.Nullbot.gravity(self.getJointAngles())
+    # gq = self.Nullbot.gravity(self.getJointAngles())
     dq = np.array(self.getJointVelocities())
 
 
