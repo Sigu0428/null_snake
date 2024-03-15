@@ -101,7 +101,28 @@ class simulation:
         
         self.setJointTorques([self.qref[0]+1000,1000,0,0,0,0,0,0,0,0])
         
-        
+  def force_mag_func(x, Fmax_param, d_param, Fd_param): 
+    # function f(x) = 1 / (e^a(x^2)) has gaussian like shape
+    # x is the input distance between the objects
+    # F_max is desired force at zero distance
+    # F_d is the desired force at some distance d                                       
+    #
+    #       │                                
+    # F_max-+-....                                      
+    #       │     ....                                  
+    #       │         ..                                
+    #       │           ..                               
+    #       │             ..                            
+    #       │               ..                          
+    #       │                 ...                       
+    # F_d  -+-                   ....                          
+    #       │                        .....                     
+    #       │                             ........       
+    #       └─────────────────────+───────────────      
+    #       0                     d                                                                                           
+    a = (np.log(1) - np.log(Fd_param/Fmax_param)) / (d_param**2)
+    F = Fmax_param / np.exp(a*(x**2))
+    return F
         
   def artificial_repulsion_field_controller(self, q):
     J = self.jacob_revol(9, q)
@@ -129,10 +150,10 @@ class simulation:
       Jp[:, i] = np.cross(zi, np.squeeze(p_0_ll - p_0_li))
     return np.row_stack((Jo, Jp))
 
-  def getNullProjMat(self, q):
+  def getNullProjMat(self, q): # dynamic projection matrix N, such that tau = tau_main + N@tau_second
     Je = self.robot.jacobe(q)
     Je_inv = np.linalg.pinv(Je)
-    M = 0 # need to calculate this
+    M = self.robot.inertia(q) # need to calculate this
     N = M@(np.eye(self.n) - Je_inv@Je)@np.linalg.inv(M)
     return N
 
