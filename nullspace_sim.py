@@ -72,12 +72,12 @@ class simulation:
     self.robot = rtb.DHRobot( 
         [ 
             #first UR
-            rtb.RevoluteDH(d=0.1625, alpha = np.pi/2, m=m1, r=pl1, I=i1), #theta=np.pi either here or in XML using ref=""
+            rtb.RevoluteDH(d=0.1625, alpha = np.pi/2,offset=np.pi, m=m1, r=pl1, I=i1), #theta=np.pi either here or in XML using ref=""
             rtb.RevoluteDH(a=-0.425, m=m2, r=pl2, I=i2),
             rtb.RevoluteDH(a=-0.3922, m=m3, r=pl3, I=i3),
             rtb.RevoluteDH(d=0.1333, alpha=np.pi/2, m=m4, r=pl4, I=i4),
             #second UR
-            rtb.RevoluteDH(d=0.1625, alpha = np.pi/2, m=m5, r=pl5, I=i5), #theta=pi
+            rtb.RevoluteDH(d=0.1625, alpha = np.pi/2, m=m5,offset=np.pi, r=pl5, I=i5), #theta=pi
             rtb.RevoluteDH(a=-0.425, m=m6, r=pl6, I=i6),
             rtb.RevoluteDH(a=-0.3922, m=m7, r=pl7, I=i7),
             rtb.RevoluteDH(d=0.1333, alpha=np.pi/2, m=m8, r=pl8, I=i8),
@@ -196,7 +196,7 @@ class simulation:
     q_tilde = np.array(self.qref) - q
     dq_tilde = np.array(self.dqref) - dq
 
-    grav = self.robot.gravload(self.getJointAngles()) #gravity compensation
+    grav = self.robot.gravload(q) #gravity compensation
 
     u = Kp*q_tilde + Kd*dq_tilde + grav
 
@@ -204,8 +204,8 @@ class simulation:
 
   def opSpacePDGControlLoop(self):
     Kp=np.eye(7)
-    Kp[:3,:3]=np.eye(3)*2000 #translational gain
-    Kp[3:,3:]=np.eye(4)*100 #orientational gain
+    Kp[:3,:3]=np.eye(3)*100 #translational gain
+    Kp[3:,3:]=np.eye(4)*20 #orientational gain
     Kd=np.eye(7)*100
 
     # get tool orientation quaternion and analytical jacobian
@@ -220,19 +220,19 @@ class simulation:
     # relative quaternion orientation:
     q_ref=UnitQuaternion(self.Tref)
     #qref=q*qee
-    q_rel=q_ee.conj()*q_ref
-    x_tilde[3:]=q_rel #q_ref.vec-q_ee
+    #q_rel=q_ee.conj()*q_ref
+    x_tilde[3:]=q_ref.vec-q_ee#q_rel #q_ref.vec-q_ee
 
-    gq= self.robot.gravload(self.getJointAngles())
+    gq= self.robot.gravload(self.getJointAngles()) #CHANGE BACK
+
     dq = np.array(self.getJointVelocities())
-
-
-    print(gq)
+ 
     u=gq+JA.T@Kp@x_tilde-JA.T@Kd@JA@dq
     
     self.setJointTorques(u)
-    
-    #print((np.linalg.norm(x_tilde),(np.linalg.norm(self.jointTorques))))
+    #print(gq[:5])
+    #print(gq[4:9])
+    #print((np.linalg.norm(x_tilde),(np.linalg.norm(self.jointTorques)))) COM vs massses
 
    
 
@@ -321,26 +321,20 @@ if __name__ == "__main__":
   print(sim.robot.gravload(q))
 
 
-  time.sleep(5)
+  while True:
+    print(sim.robot.fkine(sim.getJointAngles()))
+    print(sim.getObjFrame("ee_link2"))
+    print("-----------------------")
+    time.sleep(2)
   
   
 
 
   
   #check fkine vs mujoco EE frames
-<<<<<<< HEAD
-  print(sim.robot.fkine(sim.getJointAngles()))
+  #print(sim.robot.fkine(sim.getJointAngles()))
   
-  print(sim.getObjFrame("ee_link2"))
-=======
-  while True:
-    #print("--------------------------------")
-    #print(sim.Tref)
-    #print(sim.getObjFrame("ee_link2"))
-
-  
-    time.sleep(5)
->>>>>>> c9ea1b5656bd89bc05168624d5fb749512945e2c
+  #print(sim.getObjFrame("ee_link2"))
 
 
 
