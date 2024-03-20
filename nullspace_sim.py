@@ -203,37 +203,57 @@ class simulation:
     self.setJointTorques(u)
 
   def opSpacePDGControlLoop(self):
-    Kp=np.eye(7)
-    Kp[:3,:3]=np.eye(3)*100 #translational gain
-    Kp[3:,3:]=np.eye(4)*20 #orientational gain
-    Kd=np.eye(7)*100
+    mode="zyz"
+
+
+    if mode=="zyz":
+      dim_analytical=6 
+    elif mode=="quat":
+      dim_analytical=7
+
+    Kp=np.eye(dim_analytical)
+    Kp[:3,:3]=np.eye(int(np.floor(dim_analytical/2)))*2000 #translational gain
+    Kp[3:,3:]=np.eye(int(np.ceil(dim_analytical/2)))*10#orientational gain
+    Kd=np.eye(dim_analytical)*1
 
     # get tool orientation quaternion and analytical jacobian
-    JA,q_ee=self.getAnalyticalJacobian()
+
     T_ee=np.array(self.getObjFrame(self.tool_name))
 
-    # relative translation 
-    x_tilde=np.zeros(7)
-  
-    x_tilde[:3]=np.array(self.Tref)[:3,3]-T_ee[:3,3]
+    # xtilde
+    x_tilde=np.zeros(dim_analytical)
+    # relative translation
+    x_tilde[:3]=np.array(self.Tref)[:3,3]-T_ee[:3,3] #translational error
     
-    # relative quaternion orientation:
-    q_ref=UnitQuaternion(self.Tref)
-    #qref=q*qee
-    #q_rel=q_ee.conj()*q_ref
-    x_tilde[3:]=q_ref.vec-q_ee#q_rel #q_ref.vec-q_ee
+    if mode=="quat":
+      # relative orientation by quaternions:
+      JA,q_ee=self.getAnalyticalJacobian()
+      q_ref=UnitQuaternion(self.Tref)
+      q_rel=q_ee.conj()*q_ref
+      x_tilde[3:]=q_rel#q_ref.vec-q_ee#q_rel
 
-    gq= self.robot.gravload(self.getJointAngles()) #CHANGE BACK
+    elif mode=="zyz":
+      #relative orientation by zyz euler and petercorke analytical jac
+      JA=self.robot.jacob0_analytical(self.getJointAngles(),representation="exp")
+      #rotation error as zyz euler
+      eul_ee=tr2eul(T_ee)
+      obj_q = self.d.body(self.tool_name).xquat
+      q_ee=UnitQuaternion(obj_q).vec   
+      x_tilde[3:]=self.Tref.eul()-r2x(q2r(q_ee),"eul")
+
+    #control signal
+    gq= self.robot.gravload(self.getJointAngles())
 
     dq = np.array(self.getJointVelocities())
- 
+
     u=gq+JA.T@Kp@x_tilde-JA.T@Kd@JA@dq
-    
+
+    #self.robot.X
     self.setJointTorques(u)
     #print(gq[:5])
     #print(gq[4:9])
-    #print((np.linalg.norm(x_tilde),(np.linalg.norm(self.jointTorques)))) COM vs massses
-
+    print((np.linalg.norm(x_tilde),(np.linalg.norm(self.jointTorques)))) 
+    #print()
    
 
   def getJointAngles(self):
@@ -317,14 +337,12 @@ class simulation:
 if __name__ == "__main__":
   sim=simulation()
   sim.start() 
-  q =     np.array([1.0000,   1.0472,    1.0472, 1.0472, 1.0472, 1.0472, 1.0000,   1.0472,    1.0472, 1.0472]).T
-  print(sim.robot.gravload(q))
 
 
   while True:
-    print(sim.robot.fkine(sim.getJointAngles()))
-    print(sim.getObjFrame("ee_link2"))
-    print("-----------------------")
+    #print(sim.robot.fkine(sim.getJointAngles()))
+    #print(sim.getObjFrame("ee_link2"))
+    #print("-----------------------")
     time.sleep(2)
   
   

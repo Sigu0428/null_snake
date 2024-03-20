@@ -55,7 +55,7 @@
     <light name="spotlight" mode="targetbodycom" target="wrist_1_link" pos="0 -1 2"/>
     <!--body name="base" pos="0 0 0.74" quat=" 1 0 0 0" childclass="ur5e" quat=" 0 0 0 1"-->
     <body name="base" pos="0 0 0"  childclass="ur5e"> 
-      <inertial mass="4.0" pos="0 0 0" diaginertia="0.00443333156 0.00443333156 0.0072"/>
+      <inertial mass="0.0" pos="0 0 0" diaginertia="0.00443333156 0.00443333156 0.0072"/>
       <geom mesh="base_0" material="black" class="visual"/>
       <geom mesh="base_1" material="jointgray" class="visual"/>
       <body name="shoulder_link" pos="0 0 0.163">
