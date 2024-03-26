@@ -141,7 +141,10 @@ class simulation:
 
       #initialize joint values to home before running sim
       for i in range(0, self.n):
-        self.d.joint(f"joint{i+1}").qpos=self.q0[i]
+        if i==8:
+           self.d.joint(f"joint{i+1}").qpos=self.q0[i]#+1.2 uncomment this to add a small offset to verify  rotation works
+        else:
+          self.d.joint(f"joint{i+1}").qpos=self.q0[i]
 
       control_thrd = Thread(target=self.control_loop,daemon=True) #control loop for commanding torques
       control_thrd.start()
@@ -203,7 +206,7 @@ class simulation:
     self.setJointTorques(u)
 
   def opSpacePDGControlLoop(self):
-    mode="zyz"
+    mode="quat"
 
 
     if mode=="zyz":
@@ -213,7 +216,7 @@ class simulation:
 
     Kp=np.eye(dim_analytical)
     Kp[:3,:3]=np.eye(int(np.floor(dim_analytical/2)))*2000 #translational gain
-    Kp[3:,3:]=np.eye(int(np.ceil(dim_analytical/2)))*10#orientational gain
+    Kp[3:,3:]=np.eye(int(np.ceil(dim_analytical/2)))*1000#orientational gain
     Kd=np.eye(dim_analytical)*1
 
     # get tool orientation quaternion and analytical jacobian
@@ -229,14 +232,15 @@ class simulation:
       # relative orientation by quaternions:
       JA,q_ee=self.getAnalyticalJacobian()
       q_ref=UnitQuaternion(self.Tref)
-      q_rel=q_ee.conj()*q_ref
-      x_tilde[3:]=q_rel#q_ref.vec-q_ee#q_rel
+      #q_rel=q_ee.conj()*q_ref
+      x_tilde[3:]=q_ref.vec-q_ee #works with difference, not relative transform
 
     elif mode=="zyz":
       #relative orientation by zyz euler and petercorke analytical jac
-      JA=self.robot.jacob0_analytical(self.getJointAngles(),representation="exp")
+      JA=self.robot.jacob0_analytical(self.getJointAngles(),representation="eul")
       #rotation error as zyz euler
       eul_ee=tr2eul(T_ee)
+
       obj_q = self.d.body(self.tool_name).xquat
       q_ee=UnitQuaternion(obj_q).vec   
       x_tilde[3:]=self.Tref.eul()-r2x(q2r(q_ee),"eul")
@@ -252,7 +256,7 @@ class simulation:
     self.setJointTorques(u)
     #print(gq[:5])
     #print(gq[4:9])
-    print((np.linalg.norm(x_tilde),(np.linalg.norm(self.jointTorques)))) 
+    print((np.linalg.norm(x_tilde[:3]),np.linalg.norm(x_tilde[3:]))) 
     #print()
    
 
@@ -293,6 +297,22 @@ class simulation:
     return dist
   
   def getAnalyticalJacobian(self):
+
+    #analytical jac transform for zyz euler angles, petercorke equivalent
+    #T_ee=sim.robot.fkine(sim.q0)
+    #eul_ee=tr2eul(np.array(T_ee))
+    #z1=eul_ee[0]; y=eul_ee[1]; z2=eul_ee[2]
+    
+    #Einv=np.array([[(-np.cos(y)*np.cos(z1))/np.sin(y),(-np.cos(y)*np.sin(z1))/np.sin(y),1],
+    #              [-np.sin(z1),np.cos(z1),0],
+    #              [np.cos(z1)/np.sin(y),np.sin(z1)/np.sin(y),0]])
+                    
+
+    #TAinv=np.eye(6) #maps from geometric
+    #TAinv[3:,3:]=Einv
+    
+    #JA=TAinv@sim.robot.jacob0(sim.q0)
+
     #get ee frame orientation as quaternion
     obj_q = self.d.body(self.tool_name).xquat
     q_ee=UnitQuaternion(obj_q).vec
@@ -308,8 +328,8 @@ class simulation:
     TA_inv[3:,3:]=0.5*H.T
     TA_inv[:3,:3]=np.eye(3)
 
-    #get ee jacobian
-    Je = self.robot.jacobe(self.getJointAngles())
+    #get ee jacobian in world frame (error is defined in world frame)
+    Je = self.robot.jacob0(self.getJointAngles())
     #transform to analytical
     Ja = TA_inv@Je
     return Ja,q_ee
@@ -339,13 +359,20 @@ if __name__ == "__main__":
   sim.start() 
 
 
+
+
+    #get ee frame orientation as quaternion
+  
+  
+
+
   while True:
     #print(sim.robot.fkine(sim.getJointAngles()))
     #print(sim.getObjFrame("ee_link2"))
     #print("-----------------------")
     time.sleep(2)
   
-  
+    
 
 
   

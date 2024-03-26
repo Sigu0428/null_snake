@@ -85,3 +85,6 @@ WARNING: Nan, Inf or huge value in QACC at DOF 3. The simulation is unstable. Ti
 Wed Mar 20 15:22:55 2024
 ERROR: mjv_updateSceneState: m->nu changed
 
+Tue Mar 26 12:06:30 2024
+ERROR: Offscreen framebuffer is not complete, error 0x8cdd
+
