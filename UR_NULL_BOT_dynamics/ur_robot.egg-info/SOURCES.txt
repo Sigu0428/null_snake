@@ -1,9 +1,0 @@
-LICENSE
-README.md
-setup.py
-ur_robot.egg-info/PKG-INFO
-ur_robot.egg-info/SOURCES.txt
-ur_robot.egg-info/dependency_links.txt
-ur_robot.egg-info/not-zip-safe
-ur_robot.egg-info/requires.txt
-ur_robot.egg-info/top_level.txt
