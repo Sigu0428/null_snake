@@ -205,6 +205,61 @@ class simulation:
 
     self.setJointTorques(u)
 
+        
+  def repulsion_force_func(x, Fmax_param, d_param, Fd_param): 
+    #       │                                
+    # F_max-+-....                x: input distance to obstacle                      
+    #       │     ....            F_max: force at zero distance                      
+    #       │         ..          F_d: force at distance d                       
+    #       │           ..                               
+    #       │             ..                            
+    #       │               ..  <--- f(x)=1/exp(x^2)    (gaussian)                 
+    #       │                 ...                       
+    # F_d  -+-                   ....                          
+    #       │                        .....                     
+    #       │                             ........       
+    #       └─────────────────────+───────────────      
+    #       0                     d                                                                                           
+    a = (np.log(1) - np.log(Fd_param/Fmax_param)) / (d_param**2)
+    F = Fmax_param / np.exp(a*(x**2))
+    return F
+        
+  def artificial_repulsion_field_controller(self, q):
+    J = self.jacob_revol(9, q)
+    u = J.T@np.array([5000, 5000, 5000, 0, 0, 0]).T
+    u_proj = self.getNullProjMat(q)@u
+    return u_proj
+
+  def getJacobRevol(self, j, q): # compute jacobian for arbitrary joint j in configuration q (only works for revolute joints)
+    T_0_l = self.robot.A(j, q).A
+    rj = self.robot[j].r[..., np.newaxis]
+    rj = np.row_stack((rj, 1))
+    p_0_lj = T_0_l@rj
+    p_0_lj = p_0_lj[0:3] / p_0_lj[3]
+    
+    Jp = np.zeros((3, self.n))
+    Jo = np.zeros((3, self.n))
+    for i in range(j):
+      T_0_i = self.robot.A(i, q).A
+      zi = T_0_i[0:3, 3]
+      ri = self.robot[j].r[..., np.newaxis]
+      ri = np.row_stack((ri, 1))
+      p_0_li = T_0_i@ri
+      p_0_li = p_0_li[0:3] / p_0_li[3]
+      Jo[:, i] = zi
+      Jp[:, i] = np.cross(zi, np.squeeze(p_0_lj - p_0_li))
+    return np.row_stack((Jo, Jp))
+
+  def getNullProjMat(self, q): # dynamic projection matrix N, such that tau = tau_main + N@tau_second
+    Je = self.robot.jacobe(q)
+    Je_inv = np.linalg.pinv(Je)
+    M = self.robot.inertia(q) # need to calculate this
+    N = M@(np.eye(self.n) - Je_inv@Je)@np.linalg.inv(M)
+    return N
+
+
+
+
   def opSpacePDGControlLoop(self):
     mode="quat"
 
