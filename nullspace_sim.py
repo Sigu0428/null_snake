@@ -25,7 +25,7 @@ class simulation:
     tool_matrix = sm.SE3.Trans(0., 0., 0.18) #adds tool offset to fkine automatically!!
     robot_base = sm.SE3.Trans(0,0,0)
 
-    self.q0=[0 , -np.pi/4, 0, 0, 0,np.pi,0 , 0, 0,0] #home pose
+    self.q0=[0, -3*np.pi/4, np.pi/3, np.pi, 0, 0, np.pi/3 , 0, 0,0] #home pose
     self.q00=[0 , 0, 0, 0, 0,0,0, 0, 0,0]
 
 
@@ -110,7 +110,6 @@ class simulation:
         self.d.joint(f"joint{i+1}").qpos=self.q0[i]
 
       
-
       start = time.time()
       while viewer.is_running(): #simulation loop !
         step_start = time.time()
@@ -149,7 +148,7 @@ class simulation:
       control_thrd = Thread(target=self.control_loop,daemon=True) #control loop for commanding torques
       control_thrd.start()
 
-      start = time.time()
+      self.start_time = time.time()
       while viewer.is_running(): #simulation loop !
         step_start = time.time()
         
@@ -185,7 +184,9 @@ class simulation:
       time.sleep(self.dt)
       if self.control_enabled:
         #CONTROLLER GOES HERE!
-        self.opSpacePDGControlLoop()
+        u = self.GravCompensationControlLoop()
+        u += self.artificial_repulsion_field_controller(self.getJointAngles())
+        self.setJointTorques(u)
 
         
   def jointSpacePDGControlLoop(self):
@@ -225,9 +226,18 @@ class simulation:
     return F
         
   def artificial_repulsion_field_controller(self, q):
-    J = self.jacob_revol(9, q)
-    u = J.T@np.array([5000, 5000, 5000, 0, 0, 0]).T
-    u_proj = self.getNullProjMat(q)@u
+    u = np.zeros((10)).T
+    for i in range(1, 5):
+      J = self.getJacobRevol(i, q)
+      t = time.time() - self.start_time
+      if t > 5 and t < 10:
+        u += J.T@np.array([0, 0, 0, 30, 0, 0]).T
+      elif t > 10 and t < 20:
+        u += J.T@np.array([0, 0, 0, 0, 0, 0]).T
+      else:
+        u += J.T@np.array([0, 0, 0, 0, 0, 0]).T
+      u_proj = self.getNullProjMat(q)@u
+    print(u_proj)
     return u_proj
 
   def getJacobRevol(self, j, q): # compute jacobian for arbitrary joint j in configuration q (only works for revolute joints)
@@ -251,14 +261,18 @@ class simulation:
     return np.row_stack((Jo, Jp))
 
   def getNullProjMat(self, q): # dynamic projection matrix N, such that tau = tau_main + N@tau_second
-    Je = self.robot.jacobe(q)
+    Je = self.robot.jacob0(q)
     Je_inv = np.linalg.pinv(Je)
-    M = self.robot.inertia(q) # need to calculate this
+    M = self.robot.inertia(q)
     N = M@(np.eye(self.n) - Je_inv@Je)@np.linalg.inv(M)
     return N
 
 
-
+  def GravCompensationControlLoop(self):
+    #control signal
+    gq= self.robot.gravload(self.getJointAngles())
+    u=gq
+    return u
 
   def opSpacePDGControlLoop(self):
     mode="quat"
@@ -308,11 +322,12 @@ class simulation:
     u=gq+JA.T@Kp@x_tilde-JA.T@Kd@JA@dq
 
     #self.robot.X
-    self.setJointTorques(u)
+    #self.setJointTorques(u)
     #print(gq[:5])
     #print(gq[4:9])
-    print((np.linalg.norm(x_tilde[:3]),np.linalg.norm(x_tilde[3:]))) 
+    #print((np.linalg.norm(x_tilde[:3]),np.linalg.norm(x_tilde[3:]))) 
     #print()
+    return u
    
 
   def getJointAngles(self):
