@@ -389,14 +389,6 @@ class simulation:
     Ja = TA_inv@Je
     return Ja,q_ee
   
-  def fucking_around_with_ref(self):
-    # [0 , -np.pi/4, 0, 0, 0,np.pi,0 , 0, 0,0]
-    i = 7
-    while True:
-      time.sleep(0.01)
-      self.qref[i] += 0.01
-      if self.qref[i] > np.pi*2:
-        self.qref[i] == 0
 
   def start(self):
     #launch simulation thread
