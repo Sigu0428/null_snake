@@ -121,3 +121,6 @@ WARNING: Nan, Inf or huge value in CTRL at ACTUATOR 0. The simulation is unstabl
 Fri Apr  5 13:21:09 2024
 WARNING: Nan, Inf or huge value in CTRL at ACTUATOR 0. The simulation is unstable. Time = 1.8400.
 
+Wed Apr 10 15:07:11 2024
+ERROR: mjv_updateSceneState: m->nu changed
+
