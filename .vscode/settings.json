@@ -1,5 +1,6 @@
 {
     "files.associations": {
         "ostream": "cpp"
-    }
+    },
+    "cmake.sourceDirectory": "E:/GitSync/null_snake/UR_NULL_BOT_dynamics"
 }
