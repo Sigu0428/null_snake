@@ -30,7 +30,7 @@ class simulation:
     tool_matrix = sm.SE3.Trans(0., 0., 0.18) #adds tool offset to fkine automatically!!
     robot_base = sm.SE3.Trans(0,0,0)
 
-    self.q0=[0, -3*np.pi/4, np.pi/3, np.pi, 0, 0, np.pi/3 , 0, 0,0] #home pose
+    self.q0=  [0 , -np.pi/2.4, np.pi/2.4, -np.pi/2.2, np.pi,-np.pi/1.7,np.pi/1.7 , np.pi/2, -np.pi/2,0]  # 0, -3*np.pi/4, np.pi/3, np.pi, 0, 0, np.pi/3 , 0, 0,0] #home pose
     self.q00=[0 , 0, 0, 0, 0,0,0, 0, 0,0]
 
 
@@ -105,6 +105,8 @@ class simulation:
     self.tool_name="ee_link2"
     self.xref=np.zeros(6)
     self.Tref=self.robot.fkine(self.qref)
+    self.obstacle="blockL01"
+    self.enable_avoidance=0
 
   def launch_mujoco(self):
     with mujoco.viewer.launch_passive(self.m, self.d) as viewer:
@@ -189,8 +191,26 @@ class simulation:
       time.sleep(self.dt)
       if self.control_enabled:
         #CONTROLLER GOES HERE!
+<<<<<<< HEAD
         u = self.opSpacePDGControlLoop()
         #u += self.artificial_repulsion_field_controller(self.getJointAngles())
+=======
+        # u = self.opSpaceInverseDynControlLoop()
+        #u= self.artificial_repulsion_field_controller(self.getJointAngles())
+
+        u = self.GravCompensationControlLoop()
+
+        
+        '''
+        u_pre=u
+
+        u_null=self.nullSpacePDControl()
+        if self.enable_avoidance: 
+          u+=u_null 
+        print((u_pre-u,self.enable_avoidance))
+        '''
+
+>>>>>>> refs/remotes/origin/main
         self.setJointTorques(u)
 
         
@@ -254,6 +274,60 @@ class simulation:
     #print(u_proj)
     return u_proj
 
+
+  def nullSpacePDControl(self):
+    Kp = np.eye(3)*100
+    Kd = np.eye(3)*10
+
+    repulsion_target=5
+    
+    desired_dist=0.5
+
+    q=self.getJointAngles()
+
+    J = self.getJacobRevol(repulsion_target,q ) #jacob for 5th joint frame
+    JA = J[:3,:] #3x10 
+   
+
+    dq=np.array(self.getJointVelocities())
+    
+    
+    t_o=self.getObjState(self.obstacle)
+
+    t_elbow=self.getObjState("wrist_1_link")
+
+    #T_elbow=np.array(Ts[repulsion_target])
+    obj_dist=np.linalg.norm(t_o-t_elbow)
+
+    xtilde_dir=(t_o-t_elbow)/np.linalg.norm(t_o-t_elbow)
+
+    x_tilde=xtilde_dir*(obj_dist-desired_dist)
+
+
+
+    #print((x_d,t_elbow))
+    #print(obj_dist)
+    #print(xtilde_dir)
+    ##print(np.linalg.norm(x_tilde))
+    
+    u=JA.T@Kp@x_tilde-JA.T@Kd@JA@dq
+
+
+    #null space proj
+    nullp=self.getNullProjMat(q)
+
+    u_proj = nullp@u
+
+    print(np.linalg.norm(u_proj))
+    #print((x_tilde,np.linalg.norm(u_proj)))
+
+    return u_proj
+
+
+
+
+
+
   def getJacobRevol(self, j, q): # compute jacobian for arbitrary joint j in configuration q (only works for revolute joints)
     T_0_l = self.robot.A(j, q).A
     rj = self.robot[j].r[..., np.newaxis]
@@ -313,7 +387,7 @@ class simulation:
     
     if mode=="quat":
       # relative orientation by quaternions:
-      JA,q_ee=self.getAnalyticalJacobian()
+      JA,q_ee,JAdot=self.getAnalyticalJacobian()
       q_ref=UnitQuaternion(self.Tref)
       #q_rel=q_ee.conj()*q_ref
       x_tilde[3:]=q_ref.vec-q_ee #works with difference, not relative transform
@@ -342,7 +416,94 @@ class simulation:
     #print((np.linalg.norm(x_tilde[:3]),np.linalg.norm(x_tilde[3:]))) 
     #print()
     return u
-   
+  
+  def opSpaceInverseDynControlLoop(self):
+
+    dim_analytical=7
+    Kp=np.eye(dim_analytical)
+    Kp[:3,:3]=np.eye(int(np.floor(dim_analytical/2)))*50 #translational gain
+    Kp[3:,3:]=np.eye(int(np.ceil(dim_analytical/2)))*50#orientational gain
+    Kd=np.eye(dim_analytical)*1
+
+    # get tool orientation quaternion and analytical jacobian
+
+    T_ee=np.array(self.getObjFrame(self.tool_name))
+
+    # xtilde
+    x_tilde=np.zeros(dim_analytical)
+    # relative translation
+    x_tilde[:3]=np.array(self.Tref)[:3,3]-T_ee[:3,3] #translational error
+    
+    # relative orientation by quaternions:
+    JA,q_ee,JAdot=self.getAnalyticalJacobian()
+    q_ref=UnitQuaternion(self.Tref)
+    x_tilde[3:]=q_ref.vec-q_ee #works with difference, 
+
+    #xtilde dot: if trajectory is linear interp, this is 0
+    x_tilde_dot=np.zeros(dim_analytical) #velocity error in operational space
+
+    x_desired_ddot=np.zeros(dim_analytical) #desired acceleration
+
+    #control signal
+    q=self.getJointAngles()
+    dq = np.array(self.getJointVelocities())
+    
+    gq= self.robot.gravload(q)
+    B = self.robot.inertia(q)
+    C = self.robot.coriolis(q,dq)
+
+    y = np.linalg.pinv(JA)@(x_desired_ddot+Kd@x_tilde_dot+Kp@x_tilde-JAdot@dq)
+
+    u = gq+B@y + C@dq
+ 
+    print((np.linalg.norm(x_tilde[:3]),np.linalg.norm(x_tilde[3:]))) 
+    return u
+
+  def opSpaceInverseDynZYZControlLoop(self):
+
+    dim_analytical=6
+    Kp=np.eye(dim_analytical)
+    Kp[:3,:3]=np.eye(int(np.floor(dim_analytical/2)))*20 #translational gain
+    Kp[3:,3:]=np.eye(int(np.ceil(dim_analytical/2)))*30#orientational gain
+    Kd=np.eye(dim_analytical)*4
+
+    # get tool orientation quaternion and analytical jacobian
+
+    T_ee=np.array(self.getObjFrame(self.tool_name))
+
+    # xtilde
+    x_tilde=np.zeros(dim_analytical)
+    # relative translation
+    x_tilde[:3]=np.array(self.Tref)[:3,3]-T_ee[:3,3] #translational error
+    
+
+    JA=self.robot.jacob0_analytical(self.getJointAngles(),representation="eul")
+    JAdot=self.robot.jacob0_dot(self.getJointAngles(),self.getJointVelocities(),representation="eul")
+    #rotation error as zyz euler
+
+    obj_q = self.d.body(self.tool_name).xquat
+    q_ee=UnitQuaternion(obj_q).vec   
+    x_tilde[3:]=self.Tref.eul()-r2x(q2r(q_ee),"eul")
+
+    #xtilde dot: if trajectory is linear interp, this is 0
+    x_tilde_dot=np.zeros(dim_analytical) #velocity error in operational space
+
+    x_desired_ddot=np.zeros(dim_analytical) #desired acceleration
+
+    #control signal
+    q=self.getJointAngles()
+    dq = np.array(self.getJointVelocities())
+    
+    gq= self.robot.gravload(q)
+    B = self.robot.inertia(q)
+    C = self.robot.coriolis(q,dq)
+
+    y = np.linalg.pinv(JA)@(x_desired_ddot+Kd@x_tilde_dot+Kp@x_tilde-JAdot@dq)
+
+    u = B@y + C@dq + gq
+
+    #print((np.linalg.norm(x_tilde[:3]),np.linalg.norm(x_tilde[3:]))) 
+    return u
 
   def getJointAngles(self):
     ## State of the simulater robot 
@@ -396,7 +557,6 @@ class simulation:
     #TAinv[3:,3:]=Einv
     
     #JA=TAinv@sim.robot.jacob0(sim.q0)
-
     #get ee frame orientation as quaternion
     obj_q = self.d.body(self.tool_name).xquat
     q_ee=UnitQuaternion(obj_q).vec
@@ -414,18 +574,12 @@ class simulation:
 
     #get ee jacobian in world frame (error is defined in world frame)
     Je = self.robot.jacob0(self.getJointAngles())
+    Jedot=self.robot.jacob0_dot(self.getJointAngles(),self.getJointVelocities())
     #transform to analytical
     Ja = TA_inv@Je
-    return Ja,q_ee
+    Jadot = TA_inv@Jedot
+    return Ja,q_ee, Jadot
   
-  def fucking_around_with_ref(self):
-    # [0 , -np.pi/4, 0, 0, 0,np.pi,0 , 0, 0,0]
-    i = 7
-    while True:
-      time.sleep(0.01)
-      self.qref[i] += 0.01
-      if self.qref[i] > np.pi*2:
-        self.qref[i] == 0
 
   def start(self):
     #launch simulation thread
@@ -448,14 +602,43 @@ if __name__ == "__main__":
     #get ee frame orientation as quaternion
   
   
+  time.sleep(50000)
+
+  #pass trajectory to controller
+  T=10
+  sim.enable_avoidance=0
+  steps=100
+  q_rotated=sim.q0
+  q_rotated[0]+=np.pi/2
+  Tgoal=sim.robot.fkine(sim.q0)
+  Trj=rtb.ctraj(sim.Tref,Tgoal,steps)
+
+  for i in range(len(Trj)):
+    sim.Tref=Trj[i]
+    time.sleep(T/steps)
+
+  while True:
+    time.sleep(3)
+
+  for i in reversed(range(len(Trj))):
+    sim.Tref=Trj[i]
+    time.sleep(T/steps)
+
+  time.sleep(3)
+
+  sim.enable_avoidance=1
+  for i in range(len(Trj)):
+    sim.Tref=Trj[i]
+    time.sleep(T/steps)
 
 
   while True:
+    #print("-------------")
+    #print(sim.Tref)
     #print(sim.robot.fkine(sim.getJointAngles()))
-    #print(sim.getObjFrame("ee_link2"))
-    #print("-----------------------")
+    #print(sim.getObjFrame(sim.tool_name))
     time.sleep(2)
-  
+
     
 
 
