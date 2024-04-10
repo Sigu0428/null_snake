@@ -12,6 +12,7 @@ import matplotlib.pyplot as plt
 from spatialmath import UnitQuaternion
 from spatialmath.base import q2r, r2x, rotx, roty, rotz,tr2eul,tr2rt
 from scipy.spatial.transform import  Rotation
+from pprint import pprint
 
 class simulation:
 
@@ -20,6 +21,10 @@ class simulation:
     self.d = mujoco.MjData(self.m)
     self.jointTorques = [0 ,0,0,0,0,0,0,0,0,0] #simulation reads these and sends to motors at every time step
     self.dt = 1/100 #control loop update rate
+
+    #mujoco.MjvOption.flags[2] = True
+    opt = mujoco.MjvOption()
+    opt.mjRND_REFLECTION = False
   
     # Universal Robot UR5e kiematics parameters
     tool_matrix = sm.SE3.Trans(0., 0., 0.18) #adds tool offset to fkine automatically!!
@@ -184,14 +189,14 @@ class simulation:
       time.sleep(self.dt)
       if self.control_enabled:
         #CONTROLLER GOES HERE!
-        u = self.GravCompensationControlLoop()
-        u += self.artificial_repulsion_field_controller(self.getJointAngles())
+        u = self.opSpacePDGControlLoop()
+        #u += self.artificial_repulsion_field_controller(self.getJointAngles())
         self.setJointTorques(u)
 
         
   def jointSpacePDGControlLoop(self):
     # PD controller with gravity compensation
-    Kp = 1500
+    Kp = 150
     Kd = 50
 
     q = np.array(self.getJointAngles())
@@ -206,7 +211,16 @@ class simulation:
 
     self.setJointTorques(u)
 
-        
+  def distToCubeSurface(self, pos, cube_frame):
+    # position in world frame and cube frame in world frame, both numpy arrays
+    # transform position to cubeframe, such that cube is effectively "axis-aligned"
+    pos = np.linalg.inv(cube_frame)@np.concatenate((pos, np.array([1])))
+    pos = pos/pos[3]
+    # then follow this approach for distance to axis aligned cubes:
+    # https://math.stackexchange.com/questions/2133217/minimal-distance-to-a-cube-in-2d-and-3d-from-a-point-lying-outside
+    dist = np.sqrt(max(0, abs(pos[0])-1)**2 + max(0, abs(pos[1])-1)**2 + max(0, abs(pos[2])-1)**2)
+    return dist
+
   def repulsion_force_func(x, Fmax_param, d_param, Fd_param): 
     #       │                                
     # F_max-+-....                x: input distance to obstacle                      
@@ -237,7 +251,7 @@ class simulation:
       else:
         u += J.T@np.array([0, 0, 0, 0, 0, 0]).T
       u_proj = self.getNullProjMat(q)@u
-    print(u_proj)
+    #print(u_proj)
     return u_proj
 
   def getJacobRevol(self, j, q): # compute jacobian for arbitrary joint j in configuration q (only works for revolute joints)
