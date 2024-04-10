@@ -186,14 +186,18 @@ class simulation:
       time.sleep(self.dt)
       if self.control_enabled:
         #CONTROLLER GOES HERE!
-        u = self.opSpaceInverseDynControlLoop()
+        # u = self.opSpaceInverseDynControlLoop()
         #u= self.artificial_repulsion_field_controller(self.getJointAngles())
+
+        u = self.GravCompensationControlLoop()
+        '''
         u_pre=u
 
         u_null=self.nullSpacePDControl()
         if self.enable_avoidance: 
           u+=u_null 
         print((u_pre-u,self.enable_avoidance))
+        '''
 
         self.setJointTorques(u)
 
@@ -429,8 +433,8 @@ class simulation:
 
     y = np.linalg.pinv(JA)@(x_desired_ddot+Kd@x_tilde_dot+Kp@x_tilde-JAdot@dq)
 
-    u = B@y + C@dq + gq
-
+    u = gq+B@y + C@dq
+ 
     print((np.linalg.norm(x_tilde[:3]),np.linalg.norm(x_tilde[3:]))) 
     return u
 
