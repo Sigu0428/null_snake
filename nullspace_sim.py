@@ -186,10 +186,12 @@ class simulation:
       time.sleep(self.dt)
       if self.control_enabled:
         #CONTROLLER GOES HERE!
-        u = self.opSpaceInverseDynControlLoop()
+        # u = self.opSpaceInverseDynControlLoop()
         #u= self.artificial_repulsion_field_controller(self.getJointAngles())
 
-        # u = self.GravCompensationControlLoop()
+        u = self.GravCompensationControlLoop()
+
+        
         '''
         u_pre=u
 
