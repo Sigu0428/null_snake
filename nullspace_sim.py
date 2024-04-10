@@ -80,7 +80,8 @@ class simulation:
         #add tool frame if used: tool=tool_matrix
 
         )
-        
+    
+
     self.n=self.robot.n
     self.q0=self.q0[:self.n]
     self.T_EE_TCP=sm.SE3.Trans(0.0823,0,0)
