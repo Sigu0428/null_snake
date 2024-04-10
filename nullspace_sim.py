@@ -186,10 +186,10 @@ class simulation:
       time.sleep(self.dt)
       if self.control_enabled:
         #CONTROLLER GOES HERE!
-        # u = self.opSpaceInverseDynControlLoop()
+        u = self.opSpaceInverseDynControlLoop()
         #u= self.artificial_repulsion_field_controller(self.getJointAngles())
 
-        u = self.GravCompensationControlLoop()
+        # u = self.GravCompensationControlLoop()
         '''
         u_pre=u
 
@@ -581,7 +581,7 @@ if __name__ == "__main__":
     #get ee frame orientation as quaternion
   
   
-  time.sleep(5)
+  time.sleep(50000)
 
   #pass trajectory to controller
   T=10
