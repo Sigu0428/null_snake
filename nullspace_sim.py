@@ -13,6 +13,7 @@ from spatialmath import UnitQuaternion
 from spatialmath.base import q2r, r2x, rotx, roty, rotz,tr2eul,tr2rt
 from scipy.spatial.transform import  Rotation
 from pprint import pprint
+import pickle
 
 class simulation:
 
@@ -23,8 +24,8 @@ class simulation:
     self.dt = 1/100 #control loop update rate
 
     #mujoco.MjvOption.flags[2] = True
-    opt = mujoco.MjvOption()
-    opt.mjRND_REFLECTION = False
+    #opt = mujoco.MjvOption()
+    #opt.mjRND_REFLECTION = False
   
     # Universal Robot UR5e kiematics parameters
     tool_matrix = sm.SE3.Trans(0., 0., 0.18) #adds tool offset to fkine automatically!!
@@ -107,6 +108,25 @@ class simulation:
     self.Tref=self.robot.fkine(self.qref)
     self.obstacle="blockL01"
     self.enable_avoidance=0
+    self.log_u = []
+
+    # logging of data:
+    self.log_data_enabled = 1
+    self.ee_position_data = []
+    self.latest_u = np.zeros((10)).T
+
+  def save_data(self):
+    '''
+    This function will be used to save the data from the robot. given from the log loop
+    '''
+    with open('robot_end_effector_position.txt', 'wb') as f:
+      pickle.dump(self.ee_position_data, f)
+    
+    with open('robot_joint_torques.txt', 'wb') as f:
+      pickle.dump(self.log_u, f)
+
+
+
 
   def launch_mujoco(self):
     with mujoco.viewer.launch_passive(self.m, self.d) as viewer:
@@ -155,6 +175,9 @@ class simulation:
       control_thrd = Thread(target=self.control_loop,daemon=True) #control loop for commanding torques
       control_thrd.start()
 
+      log_data_thrd = Thread(target=self.data_log_loop,daemon=True) #control loop for commanding torques
+      log_data_thrd.start()
+
       self.start_time = time.time()
       while viewer.is_running(): #simulation loop !
         step_start = time.time()
@@ -191,27 +214,27 @@ class simulation:
       time.sleep(self.dt)
       if self.control_enabled:
         #CONTROLLER GOES HERE!
-<<<<<<< HEAD
-        u = self.opSpacePDGControlLoop()
-        #u += self.artificial_repulsion_field_controller(self.getJointAngles())
-=======
-        # u = self.opSpaceInverseDynControlLoop()
-        #u= self.artificial_repulsion_field_controller(self.getJointAngles())
-
+        #u = self.opSpacePDGControlLoop()
         u = self.GravCompensationControlLoop()
-
-        
-        '''
-        u_pre=u
-
-        u_null=self.nullSpacePDControl()
-        if self.enable_avoidance: 
-          u+=u_null 
-        print((u_pre-u,self.enable_avoidance))
-        '''
-
->>>>>>> refs/remotes/origin/main
+        u += self.artificial_repulsion_field_controller(self.getJointAngles())
+        self.latest_u = u
         self.setJointTorques(u)
+
+
+  def data_log_loop(self):
+    time_start = time.time()
+    while True:
+      time_elapsed = time.time() - time_start
+      time.sleep(self.dt)
+
+      if self.log_data_enabled:
+        self.log_robot_positions()
+        self.log_u.append(self.latest_u)
+
+      if time_elapsed > 10:
+        self.save_data()
+        time_start = time.time()
+
 
         
   def jointSpacePDGControlLoop(self):
@@ -264,8 +287,8 @@ class simulation:
     for i in range(1, 5):
       J = self.getJacobRevol(i, q)
       t = time.time() - self.start_time
-      if t > 5 and t < 10:
-        u += J.T@np.array([0, 0, 0, 30, 0, 0]).T
+      if t > 2 and t < 50:
+        u += J.T@np.array([0, 0, 0, 0, 80, 0]).T
       elif t > 10 and t < 20:
         u += J.T@np.array([0, 0, 0, 0, 0, 0]).T
       else:
@@ -324,10 +347,6 @@ class simulation:
     return u_proj
 
 
-
-
-
-
   def getJacobRevol(self, j, q): # compute jacobian for arbitrary joint j in configuration q (only works for revolute joints)
     T_0_l = self.robot.A(j, q).A
     rj = self.robot[j].r[..., np.newaxis]
@@ -352,7 +371,7 @@ class simulation:
     Je = self.robot.jacob0(q)
     Je_inv = np.linalg.pinv(Je)
     M = self.robot.inertia(q)
-    N = M@(np.eye(self.n) - Je_inv@Je)@np.linalg.inv(M)
+    N = (np.eye(self.n) - Je.T@Je_inv.T)
     return N
 
 
@@ -504,6 +523,8 @@ class simulation:
 
     #print((np.linalg.norm(x_tilde[:3]),np.linalg.norm(x_tilde[3:]))) 
     return u
+  
+
 
   def getJointAngles(self):
     ## State of the simulater robot 
@@ -580,6 +601,30 @@ class simulation:
     Jadot = TA_inv@Jedot
     return Ja,q_ee, Jadot
   
+  def log_robot_positions(self):
+    '''
+    This function is for logging the robot positions for both the end effector and the null space controller.
+    The position are used to calculate the velocities of the given instances. The values are logged in the following variables:
+    self.ee_position_data = []
+    self.null_position_data = []
+    ''' 
+    # get tool orientation quaternion and analytical jacobian
+
+    T_ee=np.array(self.getObjFrame(self.tool_name))
+
+    ee_position = np.zeros((3,4))
+    # relative translation
+    ee_position[:3,3]=np.array(T_ee[:3,3]) #translational error
+    
+
+    # relative orientation by quaternions:
+    q_ref=UnitQuaternion(self.Tref)
+    #q_rel=q_ee.conj()*q_ref
+    ee_position[3:]=q_ref.vec #works with difference, not relative transform
+
+    self.ee_position_data.append(ee_position)
+
+
 
   def start(self):
     #launch simulation thread
@@ -596,13 +641,14 @@ if __name__ == "__main__":
   sim=simulation()
   sim.start() 
 
+  time.sleep(500)
 
 
 
     #get ee frame orientation as quaternion
   
   
-  time.sleep(50000)
+
 
   #pass trajectory to controller
   T=10

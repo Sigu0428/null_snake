@@ -124,3 +124,6 @@ WARNING: Nan, Inf or huge value in CTRL at ACTUATOR 0. The simulation is unstabl
 Wed Apr 10 15:07:11 2024
 ERROR: mjv_updateSceneState: m->nu changed
 
+Sat Apr 13 11:32:38 2024
+ERROR: mjv_updateSceneState: m->nu changed
+
