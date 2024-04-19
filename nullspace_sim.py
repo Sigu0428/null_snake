@@ -299,73 +299,42 @@ class simulation:
 
 
   def nullSpacePDControl(self):
-    Kp = np.eye(3)*100
-    Kd = np.eye(3)*10
-
-    repulsion_target=5
+    Kp = np.eye(3)*1000
+    Kd = np.eye(3)*1
     
-    desired_dist=0.5
-
+    desired_dist=0.8
     q=self.getJointAngles()
-
-    J = self.getJacobRevol(repulsion_target,q ) #jacob for 5th joint frame
-    JA = J[:3,:] #3x10 
-   
-
+    target_joint = 3
+    link_names = ['base', 'shoulder_link', 'upper_arm_link', 'forearm_link', 'wrist_1_link', 'ee_link1', 'base2', 'shoulder_link2', 'upper_arm_link2', 'forearm_link2', 'wrist_1_link2', 'wrist_2_link2', 'ee_link2', 'wrist_3_link2']
+    J = self.robot.jacob0(q, self.robot.A(target_joint, q)) #jacob for 5th joint frame
+    JA = J[:3,:] #3x10
     dq=np.array(self.getJointVelocities())
-    
-    
-    t_o=self.getObjState(self.obstacle)
 
-    t_elbow=self.getObjState("wrist_1_link")
+    x_o = self.getObjState('blockL01')
+    #print("x_o: ", x_o)
+    x_e = self.getObjState(link_names[target_joint])
+    #print("x_e: ", x_e)
+    x_d = ((x_e - x_o)/np.linalg.norm(x_e - x_o)) * desired_dist + x_o
+    x_tilde = x_d - x_e
+    #print(np.linalg.norm(x_tilde))
+    u = JA.T@Kp@x_tilde - JA.T@Kd@JA@dq
 
-    #T_elbow=np.array(Ts[repulsion_target])
-    obj_dist=np.linalg.norm(t_o-t_elbow)
-
-    xtilde_dir=(t_o-t_elbow)/np.linalg.norm(t_o-t_elbow)
-
-    x_tilde=xtilde_dir*(obj_dist-desired_dist)
-
-
-
-    #print((x_d,t_elbow))
+    #target_joint = 7
+    #J = self.getJacobRevol(target_joint, q) #jacob for 5th joint frame
+    #JA = J[:3,:] #3x10 
+    #dq=np.array(self.getJointVelocities())
+    #t_o=self.getObjState('blockL01')
+    #t_elbow=self.getObjState(link_names[target_joint])
+    #obj_dist=np.linalg.norm(t_o-t_elbow)
     #print(obj_dist)
-    #print(xtilde_dir)
-    ##print(np.linalg.norm(x_tilde))
-    
-    u=JA.T@Kp@x_tilde-JA.T@Kd@JA@dq
-
+    #xtilde_dir=(t_o-t_elbow)/np.linalg.norm(t_o-t_elbow)
+    #x_tilde=xtilde_dir*(obj_dist-desired_dist)
+    #u += JA.T@Kp@x_tilde - JA.T@Kd@JA@dq
 
     #null space proj
-    nullp=self.getNullProjMat(q)
-
-    u_proj = nullp@u
-
-    print(np.linalg.norm(u_proj))
-    #print((x_tilde,np.linalg.norm(u_proj)))
-
-    return u_proj
-
-
-  def getJacobRevol(self, j, q): # compute jacobian for arbitrary joint j in configuration q (only works for revolute joints)
-    T_0_l = self.robot.A(j, q).A
-    rj = self.robot[j].r[..., np.newaxis]
-    rj = np.row_stack((rj, 1))
-    p_0_lj = T_0_l@rj
-    p_0_lj = p_0_lj[0:3] / p_0_lj[3]
-    
-    Jp = np.zeros((3, self.n))
-    Jo = np.zeros((3, self.n))
-    for i in range(j):
-      T_0_i = self.robot.A(i, q).A
-      zi = T_0_i[0:3, 3]
-      ri = self.robot[j].r[..., np.newaxis]
-      ri = np.row_stack((ri, 1))
-      p_0_li = T_0_i@ri
-      p_0_li = p_0_li[0:3] / p_0_li[3]
-      Jo[:, i] = zi
-      Jp[:, i] = np.cross(zi, np.squeeze(p_0_lj - p_0_li))
-    return np.row_stack((Jo, Jp))
+    #print("null space projection matrix: ", self.getNullProjMat(q))
+    u = self.getNullProjMat(q)@u
+    return u
 
   def getNullProjMat(self, q): # dynamic projection matrix N, such that tau = tau_main + N@tau_second
     Je = self.robot.jacob0(q)
