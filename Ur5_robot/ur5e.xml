@@ -5,7 +5,7 @@
   <default>
     <default class="ur5e">
       <material specular="0.5" shininess="0.25"/>
-      <joint axis="0 1 0" range="-6.28319 6.28319" armature="0.1" damping='200'/>
+      <joint axis="0 1 0" range="-6.28319 6.28319" damping='200'/>
       <default class="GRIPPER">
         <joint damping='5'/>
       </default>

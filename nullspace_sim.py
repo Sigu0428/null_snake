@@ -34,7 +34,6 @@ class simulation:
     self.q0=  [0 , -np.pi/2.4, np.pi/2.4, -np.pi/2.2, np.pi,-np.pi/1.7,np.pi/1.7 , np.pi/2, -np.pi/2,0]  # 0, -3*np.pi/4, np.pi/3, np.pi, 0, 0, np.pi/3 , 0, 0,0] #home pose
     self.q00=[0 , 0, 0, 0, 0,0,0, 0, 0,0]
 
-
     # UR5e kinematics parameters
     pl1 = np.array([0,      -0.02561,   0.00193])
     pl2 = np.array([0.2125, 0,          0.11336])
@@ -49,17 +48,17 @@ class simulation:
     pl10 = np.array([0,      0,          -0.001159])
 
 
-    i1 = np.array([[0.0084, 0., 0.],    [0., 0.0064, 0.],   [0., 0., 0.0064]])
-    i2 = np.array([[0.0078, 0., 0.],    [0., 0.21, 0.],   [0., 0., 0.21]])
-    i3 = np.array([[0.0016, 0., 0.],    [0., 0.0462, 0.],   [0., 0., 0.0462]])
-    i4 = np.array([[0.0, 0.0, 0.0],    [0.0, 0.0, 0.0],   [0.0, 0.0, 0.0]])
+    i1 = np.array([[0.0, 0., 0.],    [0., 0.0, 0.],   [0., 0., 0.00000001]])
+    i2 = np.array([[0.0, 0., 0.],    [0., 0.0, 0.],   [0., 0., 0.00000001]])
+    i3 = np.array([[0.0, 0., 0.],    [0., 0.0, 0.],   [0., 0., 0.00000001]])
+    i4 = np.array([[0.0, 0.0, 0.0],    [0.0, 0.0, 0.0],   [0.0, 0.0, 0.00000001]])
 
-    i5 = np.array([[0.0084, 0., 0.],    [0., 0.0064, 0.],   [0., 0., 0.0064]])
-    i6 = np.array([[0.0078, 0., 0.],    [0., 0.21, 0.],   [0., 0., 0.21]])
-    i7 = np.array([[0.0016, 0., 0.],    [0., 0.0462, 0.],   [0., 0., 0.0462]])
-    i8 = np.array([[0.0, 0.0, 0.0],    [0.0, 0.0, 0.0],   [0.0, 0.0, 0.0]])
-    i9 = np.array([[0.0, 0.0, 0.0],    [0.0, 0.0, 0.0],   [0.0, 0.0, 0.0]])
-    i10 = np.array([[0.0001, 0.0, 0.0],    [0.0, 0.0001, 0.0],   [0.0, 0.0, 0.0001]])
+    i5 = np.array([[0.0, 0., 0.],    [0., 0.0, 0.],   [0., 0., 0.00000001]])
+    i6 = np.array([[0.0, 0., 0.],    [0., 0.0, 0.],   [0., 0., 0.00000001]])
+    i7 = np.array([[0.0, 0., 0.],    [0., 0.0, 0.],   [0., 0., 0.00000001]])
+    i8 = np.array([[0.0, 0.0, 0.0],    [0.0, 0.0, 0.0],   [0.0, 0.0, 0.00000001]])
+    i9 = np.array([[0.0, 0.0, 0.0],    [0.0, 0.0, 0.0],   [0.0, 0.0, 0.00000001]])
+    i10 = np.array([[0.0, 0.0, 0.0],    [0.0, 0.0, 0.0],   [0.0, 0.0, 0.00000001]])
 
     m1 = 3.761
     m2 = 8.058
@@ -73,7 +72,7 @@ class simulation:
     m9 = 1.3
     m10 = 0.365
 
-
+    self.robot_link_names = ["shoulder_link1", "upper_arm_link", "forarm_link", "wrist_1_link", "ee_link1", "shoulder_link2", "upper_arm_link2", "forarm_link2", "wrist_1_link2", "wrist_2_link2", "wrist_3_link2", "ee_link2"]
 
     self.robot = rtb.DHRobot( 
         [ 
@@ -112,6 +111,7 @@ class simulation:
 
     # logging of data:
     self.log_data_enabled = 1
+    self.ee_desired_data = []
     self.ee_position_data = []
     self.latest_u = np.zeros((10)).T
 
@@ -121,6 +121,9 @@ class simulation:
     '''
     with open('robot_end_effector_position.txt', 'wb') as f:
       pickle.dump(self.ee_position_data, f)
+    
+    with open('robot_end_effector_position_desired.txt', 'wb') as f:
+      pickle.dump(self.ee_desired_data, f)
     
     with open('robot_joint_torques.txt', 'wb') as f:
       pickle.dump(self.log_u, f)
@@ -168,12 +171,14 @@ class simulation:
       #initialize joint values to home before running sim
       for i in range(0, self.n):
         if i==8:
-           self.d.joint(f"joint{i+1}").qpos=self.q0[i]#+1.2 uncomment this to add a small offset to verify  rotation works
+          self.d.joint(f"joint{i+1}").qpos=self.q0[i]#+1.2 uncomment this to add a small offset to verify  rotation works
         else:
           self.d.joint(f"joint{i+1}").qpos=self.q0[i]
 
+
       control_thrd = Thread(target=self.control_loop,daemon=True) #control loop for commanding torques
       control_thrd.start()
+
 
       log_data_thrd = Thread(target=self.data_log_loop,daemon=True) #control loop for commanding torques
       log_data_thrd.start()
@@ -214,13 +219,21 @@ class simulation:
       time.sleep(self.dt)
       if self.control_enabled:
         #CONTROLLER GOES HERE!
-        #u = self.opSpacePDGControlLoop()
+        u_main = self.opSpacePDGControlLoop()
+        #u = self.opSpaceInverseDynControlLoop()
         grav = self.GravCompensationControlLoop()
-        u += self.artificial_repulsion_field_controller(self.getJointAngles())
+        # u_null = self.artificial_repulsion_field_controller(self.getJointAngles())
+
+        u = u_main
+
+        
+
+
         self.latest_u = u
 
-        u = grav + self.getNullProjMat(self.getJointAngles())@grav
         self.setJointTorques(u)
+
+      
 
 
   def data_log_loop(self):
@@ -231,9 +244,10 @@ class simulation:
 
       if self.log_data_enabled:
         self.log_robot_positions()
+        self.log_desired_position()
         self.log_u.append(self.latest_u)
 
-      if time_elapsed > 10:
+      if time_elapsed > 1:
         self.save_data()
         time_start = time.time()
 
@@ -287,69 +301,110 @@ class simulation:
   def artificial_repulsion_field_controller(self, q):
     u = np.zeros((10)).T
 
-    for i in range(1, 10):
 
-      J = self.robot.jacob0(q, self.robot.A(i, q))
+    J = self.robot.jacob0(q)
 
-      t = time.time() - self.start_time
-      if t > 2 and t < 50:
-        u += J.T@np.array([0, 0, 0, -2000, 0, 0]).T
-      elif t > 10 and t < 20:
-        u += J.T@np.array([0, 0, 0, 0, 0, 0]).T
-      else:
-        u += J.T@np.array([0, 0, 0, 0, 0, 0]).T
+    null_projection = self.getNullProjMat(q)
+
+    u = J.T@np.array([0, 0, 0, 0, 0, -50]).T
 
 
-    u_proj = self.getNullProjMat(q)@u
+    u_proj = null_projection@u
+
 
 
     #print(u_proj)
     return u_proj
+  
+
+
 
 
   def nullSpacePDControl(self):
-    Kp = np.eye(3)*1000
-    Kd = np.eye(3)*1
+    Kp = np.eye(3)*50
+    Kd = np.eye(3)*10
+
+    repulsion_target=5
+    link_name = self.robot_link_names[repulsion_target]
     
-    desired_dist=0.8
+    desired_dist= 1.5
+
     q=self.getJointAngles()
-    target_joint = 3
-    link_names = ['base', 'shoulder_link', 'upper_arm_link', 'forearm_link', 'wrist_1_link', 'ee_link1', 'base2', 'shoulder_link2', 'upper_arm_link2', 'forearm_link2', 'wrist_1_link2', 'wrist_2_link2', 'ee_link2', 'wrist_3_link2']
-    J = self.robot.jacob0(q, self.robot.A(target_joint, q)) #jacob for 5th joint frame
-    JA = J[:3,:] #3x10
+
+    J = self.getJacobRevol(repulsion_target,q ) #jacob for 5th joint frame
+    JA = J[:3,:] #3x10 
+
+    self.robot.name
+    
+
     dq=np.array(self.getJointVelocities())
+    
+    
+    t_o=self.getObjState(self.obstacle)
 
-    x_o = self.getObjState('blockL01')
-    #print("x_o: ", x_o)
-    x_e = self.getObjState(link_names[target_joint])
-    #print("x_e: ", x_e)
-    x_d = ((x_e - x_o)/np.linalg.norm(x_e - x_o)) * desired_dist + x_o
-    x_tilde = x_d - x_e
-    #print(np.linalg.norm(x_tilde))
-    u = JA.T@Kp@x_tilde - JA.T@Kd@JA@dq
+    t_elbow=self.getObjState(link_name)
 
-    #target_joint = 7
-    #J = self.getJacobRevol(target_joint, q) #jacob for 5th joint frame
-    #JA = J[:3,:] #3x10 
-    #dq=np.array(self.getJointVelocities())
-    #t_o=self.getObjState('blockL01')
-    #t_elbow=self.getObjState(link_names[target_joint])
-    #obj_dist=np.linalg.norm(t_o-t_elbow)
+    #T_elbow=np.array(Ts[repulsion_target])
+    obj_dist=np.linalg.norm(t_o-t_elbow)
+
+    xtilde_dir=(t_o-t_elbow)/np.linalg.norm(t_o-t_elbow)
+
+    x_tilde=xtilde_dir*(obj_dist-desired_dist)
+
+    # print(obj_dist-desired_dist)
+
+    #print((x_d,t_elbow))
     #print(obj_dist)
     #xtilde_dir=(t_o-t_elbow)/np.linalg.norm(t_o-t_elbow)
     #x_tilde=xtilde_dir*(obj_dist-desired_dist)
     #u += JA.T@Kp@x_tilde - JA.T@Kd@JA@dq
 
     #null space proj
-    #print("null space projection matrix: ", self.getNullProjMat(q))
-    u = self.getNullProjMat(q)@u
-    return u
+    nullp=self.getNullProjMat(q)
+
+    u = nullp@u
+
+    # print(np.linalg.norm(u_proj))
+    #print((x_tilde,np.linalg.norm(u_proj)))
+    return u# u_proj
+
+
+  def getJacobRevol(self, j, q): # compute jacobian for arbitrary joint j in configuration q (only works for revolute joints)
+    T_0_l = self.robot.A(j, q).A
+    rj = self.robot[j].r[..., np.newaxis]
+    rj = np.row_stack((rj, 1))
+    p_0_lj = T_0_l@rj
+    p_0_lj = p_0_lj[0:3] / p_0_lj[3]
+    
+    Jp = np.zeros((3, self.n))
+    Jo = np.zeros((3, self.n))
+    for i in range(j):
+      T_0_i = self.robot.A(i, q).A
+      zi = T_0_i[0:3, 3]
+      ri = self.robot[j].r[..., np.newaxis]
+      ri = np.row_stack((ri, 1))
+      p_0_li = T_0_i@ri
+      p_0_li = p_0_li[0:3] / p_0_li[3]
+      Jo[:, i] = zi
+      Jp[:, i] = np.cross(zi, np.squeeze(p_0_lj - p_0_li))
+    return np.row_stack((Jo, Jp))
 
   def getNullProjMat(self, q): # dynamic projection matrix N, such that tau = tau_main + N@tau_second
     Je = self.robot.jacob0(q)
     Je_inv = np.linalg.pinv(Je)
     M = self.robot.inertia(q)
-    N = (np.eye(self.n) - Je_inv@Je)
+
+    N = (np.eye(self.n) - Je_inv@Je) # Successive projection matrix
+
+    # N = M@(np.eye(self.n) - Je_inv@Je)@np.linalg.pinv(M)
+
+
+    # Khatib 1995 "Inertial Properties in Robotic Manipula- tion: An Object-Level Framework"
+    # Lambda = np.linalg.inv(Je @ np.linalg.pinv(M)@Je.T)
+    # Je_bar = np.linalg.pinv(M)@Je.T@Lambda
+
+    # N = np.eye(self.n) - Je.T@Je_bar.T
+    
     return N
 
 
@@ -370,7 +425,7 @@ class simulation:
 
     Kp=np.eye(dim_analytical)
     Kp[:3,:3]=np.eye(int(np.floor(dim_analytical/2)))*2000 #translational gain
-    Kp[3:,3:]=np.eye(int(np.ceil(dim_analytical/2)))*1000#orientational gain
+    Kp[3:,3:]=np.eye(int(np.ceil(dim_analytical/2)))*800#orientational gain
     Kd=np.eye(dim_analytical)*1
 
     # get tool orientation quaternion and analytical jacobian
@@ -420,7 +475,7 @@ class simulation:
     Kp=np.eye(dim_analytical)
     Kp[:3,:3]=np.eye(int(np.floor(dim_analytical/2)))*50 #translational gain
     Kp[3:,3:]=np.eye(int(np.ceil(dim_analytical/2)))*50#orientational gain
-    Kd=np.eye(dim_analytical)*1
+    Kd=np.eye(dim_analytical)*50
 
     # get tool orientation quaternion and analytical jacobian
 
@@ -453,7 +508,7 @@ class simulation:
 
     u = gq+B@y + C@dq
  
-    print((np.linalg.norm(x_tilde[:3]),np.linalg.norm(x_tilde[3:]))) 
+    # print((np.linalg.norm(x_tilde[:3]),np.linalg.norm(x_tilde[3:]))) 
     return u
 
   def opSpaceInverseDynZYZControlLoop(self):
@@ -604,12 +659,49 @@ class simulation:
 
 
 
+  def log_desired_position(self):
+    '''
+    This function logs the desired position of the end effector in the world frame
+    given as sim.Tref
+    '''
+    # get tool orientation quaternion and analytical jacobian
+
+    T_ee_desired=self.Tref
+    ee_position = np.zeros((3,4))
+    # relative translation
+    ee_position[:3,3]=np.array(self.Tref)[:3,3] #translational error
+    
+
+    # relative orientation by quaternions:
+    q_ref=UnitQuaternion(T_ee_desired)
+
+    ee_position[3:]=q_ref.vec #works with difference, not relative transform
+
+    self.ee_desired_data.append(ee_position)
+
+
   def start(self):
     #launch simulation thread
     self.jointLock = Lock()
     self.sendPositions = False
     mujoco_thrd = Thread(target=self.launch_mujoco_with_control, daemon=True)
     mujoco_thrd.start()
+    
+    if False:
+      time.sleep(1)
+      T_ee=np.array(self.getObjFrame(self.tool_name))
+      print("ee frame: ", T_ee[:3, 3])
+      print("joint angles: ", sim.getJointAngles())
+      print("J_ee: ",  np.array_str(sim.robot.jacob0(sim.getJointAngles()).T, precision=3))
+      print("grav compensation: ", np.array_str(sim.robot.gravload(sim.getJointAngles()), precision=3))
+      print("Inertia matrix: ",  np.array_str(sim.robot.inertia(sim.getJointAngles()).T, precision=3))
+      print("\n"*3)
+
+    M=np.zeros((sim.m.nv, sim.m.nv))
+    L = mujoco.mj_fullM(sim.m,M , sim.d.qM)
+
+
+
     #control_thrd = Thread(target=self.control_loop,daemon=True) #control loop for commanding torques
     #control_thrd.start()
 
@@ -618,31 +710,21 @@ class simulation:
 if __name__ == "__main__":
   sim=simulation()
   sim.start() 
-
-  time.sleep(500)
-
-
-
-    #get ee frame orientation as quaternion
-  
-  
-
+  #get ee frame orientation as quaternion
 
   #pass trajectory to controller
   T=10
   sim.enable_avoidance=0
   steps=100
-  q_rotated=sim.q0
-  q_rotated[0]+=np.pi/2
-  Tgoal=sim.robot.fkine(sim.q0)
+  #q_rotated=sim.q0
+  #q_rotated[0]+=np.pi/2
+  q_goal = [np.pi/2 , -np.pi/2.4, np.pi/2.4, -np.pi/2.2, np.pi,-np.pi/1.7,np.pi/1.7 , np.pi/2, -np.pi/2,0] 
+  Tgoal=sim.robot.fkine(q_goal)
   Trj=rtb.ctraj(sim.Tref,Tgoal,steps)
 
   for i in range(len(Trj)):
     sim.Tref=Trj[i]
     time.sleep(T/steps)
-
-  while True:
-    time.sleep(3)
 
   for i in reversed(range(len(Trj))):
     sim.Tref=Trj[i]

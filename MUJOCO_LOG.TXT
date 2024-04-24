@@ -127,6 +127,34 @@ ERROR: mjv_updateSceneState: m->nu changed
 Sat Apr 13 11:32:38 2024
 ERROR: mjv_updateSceneState: m->nu changed
 
+<<<<<<< Updated upstream
 Wed Apr 24 13:28:55 2024
+=======
+Fri Apr 19 10:18:48 2024
+ERROR: mjv_updateSceneState: m->nu changed
+
+Fri Apr 19 11:15:52 2024
+ERROR: mjv_updateSceneState: m->nu changed
+
+Fri Apr 19 11:22:45 2024
+ERROR: mjv_updateSceneState: m->nu changed
+
+Wed Apr 24 11:14:30 2024
+ERROR: mjv_updateSceneState: m->nu changed
+
+Wed Apr 24 13:10:16 2024
+>>>>>>> Stashed changes
+ERROR: mjv_updateSceneState: m->nu changed
+
+Wed Apr 24 14:11:25 2024
+ERROR: mjv_updateSceneState: m->nu changed
+
+Wed Apr 24 14:14:50 2024
+ERROR: mjv_updateSceneState: m->nu changed
+
+Wed Apr 24 16:16:17 2024
+ERROR: mjv_updateSceneState: m->nu changed
+
+Wed Apr 24 16:17:52 2024
 ERROR: mjv_updateSceneState: m->nu changed
 
