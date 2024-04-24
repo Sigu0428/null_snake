@@ -215,9 +215,11 @@ class simulation:
       if self.control_enabled:
         #CONTROLLER GOES HERE!
         #u = self.opSpacePDGControlLoop()
-        u = self.GravCompensationControlLoop()
+        grav = self.GravCompensationControlLoop()
         u += self.artificial_repulsion_field_controller(self.getJointAngles())
         self.latest_u = u
+
+        u = grav + self.getNullProjMat(self.getJointAngles())@grav
         self.setJointTorques(u)
 
 
@@ -284,16 +286,23 @@ class simulation:
         
   def artificial_repulsion_field_controller(self, q):
     u = np.zeros((10)).T
-    for i in range(1, 5):
-      J = self.getJacobRevol(i, q)
+
+    for i in range(1, 10):
+
+      J = self.robot.jacob0(q, self.robot.A(i, q))
+
       t = time.time() - self.start_time
       if t > 2 and t < 50:
-        u += J.T@np.array([0, 0, 0, 0, 80, 0]).T
+        u += J.T@np.array([0, 0, 0, -2000, 0, 0]).T
       elif t > 10 and t < 20:
         u += J.T@np.array([0, 0, 0, 0, 0, 0]).T
       else:
         u += J.T@np.array([0, 0, 0, 0, 0, 0]).T
-      u_proj = self.getNullProjMat(q)@u
+
+
+    u_proj = self.getNullProjMat(q)@u
+
+
     #print(u_proj)
     return u_proj
 
@@ -340,7 +349,7 @@ class simulation:
     Je = self.robot.jacob0(q)
     Je_inv = np.linalg.pinv(Je)
     M = self.robot.inertia(q)
-    N = (np.eye(self.n) - Je.T@Je_inv.T)
+    N = (np.eye(self.n) - Je_inv@Je)
     return N
 
 
