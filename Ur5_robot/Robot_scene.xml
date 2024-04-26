@@ -25,14 +25,20 @@
     <light pos="0 0 1.5" dir="0 0 -1" directional="true"/>
     <geom name="floor" size="0 0 0.05" type="plane" material="groundplane"/>
 
-  <body name="blockL01" pos="0.35 0.35 0.35" quat="1 0 0 0">
-      <joint name="Obj1" type="free"/>
-      <geom type="box" mass="0.4" size="0.18 0.18 0.18" rgba="0 1 0 0.5"/>
-      <inertial pos="0 0 0" mass="0.2" diaginertia="0.001 0.001 0.001" /> 
-  </body>
+    <body name="blockL01" pos="0.35 0.35 0.35" quat="1 0 0 0">
+        <joint name="box1" type="slide" axis="1 0 0"/>
+        <joint name="box2" type="slide" axis="0 1 0"/>
+        <geom type="box" mass="0.4" size="0.18 0.18 0.18" rgba="0 1 0 0.5"/>
+        <inertial pos="0 0 0" mass="0.2" diaginertia="0.001 0.001 0.001" /> 
+    </body>
 
-   
+
   </worldbody>
 
+
+
+
   <include file="ur5e.xml"/>
+
+
 </mujoco>

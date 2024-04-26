@@ -34,8 +34,8 @@ if __name__ == "__main__":
     SDD_control = SDD_controller(k=10)
     
     sim.controllers.append(g)
-    sim.controllers.append(SDD_control)
-    # sim.nullspace_controllers.append(SDD_control)
+    # sim.controllers.append(SDD_control)
+    sim.nullspace_controllers.append(SDD_control)
 
     sim.start() 
 

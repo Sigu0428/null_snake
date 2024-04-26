@@ -446,7 +446,11 @@ class simulation:
     self.jointLock = Lock()
     self.sendPositions = False
 
+
     mujoco_thrd = Thread(target=self.launch_mujoco_with_control, daemon=True)
+
+
+    
     mujoco_thrd.start()
     
 

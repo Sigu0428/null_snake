@@ -182,6 +182,9 @@
     <motor name='actuator9' joint="joint9" />
     <motor name='actuator10' joint="joint10" />
 
+    <velocity name='box1' joint="box1" />
+    <velocity name='box2' joint="box2" />
+
   </actuator>
 
   <!--sensor>
