@@ -41,3 +41,7 @@ Thumbs.db
 # pycache #
 ######################
 .pyc
+
+# MUJOCO_LOG #
+######################
+MUJOCO_LOG.TXT
