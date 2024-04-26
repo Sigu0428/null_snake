@@ -60,7 +60,7 @@ class simulation:
     i7 = np.array([[0.0, 0., 0.],    [0., 0.0, 0.],   [0., 0., 0.00000001]])
     i8 = np.array([[0.0, 0.0, 0.0],    [0.0, 0.0, 0.0],   [0.0, 0.0, 0.00000001]])
     i9 = np.array([[0.0, 0.0, 0.0],    [0.0, 0.0, 0.0],   [0.0, 0.0, 0.00000001]])
-    i10 = np.array([[0.0, 0.0, 0.0],    [0.0, 0.0, 0.0],   [0.0, 0.0, 0.00000001]])
+    i10 = np.array([[0.0, 0.0, 0.0],    [0.0, 0.0, 0.0],   [0.0, 0.0, 0.1]])
 
     m1 = 3.761
     m2 = 8.058
@@ -484,8 +484,9 @@ class simulation:
 
     dim_analytical=7
     Kp=np.eye(dim_analytical)
-    Kp[:3,:3]=np.eye(int(np.floor(dim_analytical/2)))*10 #translational gain
-    Kp[3:,3:]=np.eye(int(np.ceil(dim_analytical/2)))*200#orientational gain
+    Kp[:3,:3]=np.eye(int(np.floor(dim_analytical/2)))*1 #translational gain
+    Kp[3:,3:]=np.eye(int(np.ceil(dim_analytical/2)))*1#orientational gain
+
     Kd=np.eye(dim_analytical)*1
 
     # get tool orientation quaternion and analytical jacobian
@@ -501,16 +502,18 @@ class simulation:
     JA,q_ee,JAdot=self.getAnalyticalJacobian()
     q_ref=UnitQuaternion(self.Tref)
     x_tilde[3:]=q_ref.vec-q_ee#works with difference if step small
-    
+    #np.set_printoptions(precision=5,suppress=True)
+    #print(np.linalg.pinv(JA))
+ 
     #use linterp step if error too large
-    linterp_tresh=0.1
+    linterp_tresh=0.5
     if np.linalg.norm(x_tilde[3:])>linterp_tresh:
       dir=x_tilde[3:]/np.linalg.norm(x_tilde[3:])
       q_ref_linterp=q_ee+dir*linterp_tresh
       x_tilde[3:]=q_ref_linterp-q_ee
 
-
-    #xtilde dot: if trajectory is linear interp, this is 0
+    #print(x_tilde[3:])
+    #xtilde dot: if trajectory is linear interp, this is constant
     x_tilde_dot=x_tilde/self.dt #velocity error in operational space
 
     x_desired_ddot=np.zeros(dim_analytical) #desired acceleration
@@ -522,9 +525,10 @@ class simulation:
     gq= self.robot.gravload(q)
     B = self.robot.inertia(q)
     C = self.robot.coriolis(q,dq)
-
+    #print((x_desired_ddot+Kd@x_tilde_dot+Kp@x_tilde-JAdot@dq))
     y = np.linalg.pinv(JA)@(x_desired_ddot+Kd@x_tilde_dot+Kp@x_tilde-JAdot@dq)
-
+    #np.set_printoptions(precision=5,suppress=True)
+  
     u = gq+B@y + C@dq
  
     #print((np.linalg.norm(x_tilde[:3]),np.linalg.norm(x_tilde[3:]))) 
@@ -534,9 +538,9 @@ class simulation:
 
     dim_analytical=6
     Kp=np.eye(dim_analytical)
-    Kp[:3,:3]=np.eye(int(np.floor(dim_analytical/2)))*20 #translational gain
-    Kp[3:,3:]=np.eye(int(np.ceil(dim_analytical/2)))*30#orientational gain
-    Kd=np.eye(dim_analytical)*4
+    Kp[:3,:3]=np.eye(int(np.floor(dim_analytical/2)))*1 #translational gain
+    Kp[3:,3:]=np.eye(int(np.ceil(dim_analytical/2)))*1#orientational gain
+    Kd=np.eye(dim_analytical)*0
 
     # get tool orientation quaternion and analytical jacobian
 
@@ -549,15 +553,18 @@ class simulation:
     
 
     JA=self.robot.jacob0_analytical(self.getJointAngles(),representation="eul")
+
     JAdot=self.robot.jacob0_dot(self.getJointAngles(),self.getJointVelocities(),representation="eul")
     #rotation error as zyz euler
 
+    T_ee=np.array(self.getObjFrame(self.tool_name))
     obj_q = self.d.body(self.tool_name).xquat
-    q_ee=UnitQuaternion(obj_q).vec   
+    q_ee=UnitQuaternion(obj_q).vec #s,v1,v2,v3
+
     x_tilde[3:]=self.Tref.eul()-r2x(q2r(q_ee),"eul")
 
-    #xtilde dot: if trajectory is linear interp, this is 0
-    x_tilde_dot=np.zeros(dim_analytical) #velocity error in operational space
+    #xtilde dot: if trajectory is linear interp, this is constant
+    x_tilde_dot=x_tilde/self.dt #velocity error in operational space
 
     x_desired_ddot=np.zeros(dim_analytical) #desired acceleration
 
@@ -573,7 +580,7 @@ class simulation:
 
     u = B@y + C@dq + gq
 
-    #print((np.linalg.norm(x_tilde[:3]),np.linalg.norm(x_tilde[3:]))) 
+    print((np.linalg.norm(x_tilde[:3]),np.linalg.norm(x_tilde[3:]))) 
     return u
   
 
@@ -632,10 +639,10 @@ class simulation:
     #JA=TAinv@sim.robot.jacob0(sim.q0)
     #get ee frame orientation as quaternion
     obj_q = self.d.body(self.tool_name).xquat
-    q_ee=UnitQuaternion(obj_q).vec
+    q_ee=UnitQuaternion(obj_q).vec #s,v1,v2,v3
 
     #analytical jac transform
-    xi0=q_ee[0]; xi1=q_ee[1];xi2=q_ee[2];xi3=q_ee[3]
+    xi0=q_ee[0]; xi1=q_ee[1];xi2=q_ee[2];xi3=q_ee[3] #xi0 = s, ...
 
     H=np.array([[-xi1,xi0,-xi3,xi2],
                 [-xi2,xi3,xi0,-xi1],
@@ -675,6 +682,7 @@ class simulation:
     ee_position[3:]=q_ref.vec #works with difference, not relative transform
 
     self.ee_position_data.append(ee_position)
+
 
 
 
@@ -732,24 +740,29 @@ if __name__ == "__main__":
   #get ee frame orientation as quaternion
 
   #pass trajectory to controller
-  T=10
-  sim.enable_avoidance=0
-  steps=100
-  #q_rotated=sim.q0
-  #q_rotated[0]+=np.pi/2
-  q_goal = [np.pi/2 , -np.pi/2.4, np.pi/2.4, -np.pi/2.2, np.pi,-np.pi/1.7,np.pi/1.7 , np.pi/2, -np.pi/2,0] 
-  Tgoal=sim.robot.fkine(q_goal)
-  Trj=rtb.ctraj(sim.Tref,Tgoal,steps)
+ 
+  
 
-  while True:
+  q_goal = [np.pi/2 , -np.pi/2.4, np.pi/2.4, -np.pi/2.2, np.pi,-np.pi/1.7,np.pi/1.7 , np.pi/2, -np.pi/2,0] 
+
+
+  steps=[500,100,300]
+  T=[5,3,6,3,3]
+  #viapoints=[sim.robot.fkine(sim.q0)*sm.SE3.RPY(0,0,np.pi/2)] #zyx rot order
+  viapoints=[sim.robot.fkine(q_goal)]
+  viapoints.append(viapoints[-1]*sm.SE3.Trans(0,0.2,0.2)) #relative to prev ee frame
+  viapoints.append(viapoints[-1]*sm.SE3.Trans(-1,0,0))
+
+  time.sleep(3)
+
+  for j in range(len(viapoints)):
+    Trj=rtb.ctraj(sim.robot.fkine(sim.getJointAngles()),viapoints[j],steps[j])
+    print(int(T[j]/sim.dt))
     for i in range(len(Trj)):
       sim.Tref=Trj[i]
-      time.sleep(T/steps)
-    time.sleep(10)
-    for i in reversed(range(len(Trj))):
-      sim.Tref=Trj[i]
-      time.sleep(T/steps)
-
+      time.sleep(T[j]/steps[j])
+    time.sleep(2)
+  while True:
     time.sleep(3)
 
   #sim.enable_avoidance=1

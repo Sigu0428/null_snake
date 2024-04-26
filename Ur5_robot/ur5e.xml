@@ -6,9 +6,7 @@
     <default class="ur5e">
       <material specular="0.5" shininess="0.25"/>
       <joint axis="0 1 0" range="-6.28319 6.28319" damping='200'/>
-      <default class="GRIPPER">
-        <joint damping='5'/>
-      </default>
+    
 
       <default class="visual">
         <geom type="mesh" contype="0" conaffinity="0" group="2"/>
@@ -142,7 +140,7 @@
                               <body name="wrist_3_link2" pos="0 0 0.1"> 
                                 <inertial mass="1.3" pos="0 0.01634 0.0018" quat="1 0 0 1"
                                   diaginertia="0.000132134 9.90863e-05 9.90863e-05"/>
-                                <joint name="joint10" class="ur5e" limited="true" range="-3.14159 3.14159" />
+                                <joint name="joint10" class="ur5e" limited="true" range="-3.14159 3.14159" damping='10'/>
                                 <geom material="linkgray" mesh="wrist3" class="visual"/>
                                 <geom class="eef_collision" pos="0 0.08 0" quat="1 1 0 0" size="0.04 0.02"/>
                                 <!--joint 6 frame from DH -->
