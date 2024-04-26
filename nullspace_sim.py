@@ -14,6 +14,8 @@ from spatialmath.base import q2r, r2x, rotx, roty, rotz,tr2eul,tr2rt
 from scipy.spatial.transform import  Rotation
 from pprint import pprint
 import pickle
+from numpy.linalg import norm, pinv, inv, det
+import robot_matrices as rm
 
 class simulation:
 
@@ -219,22 +221,13 @@ class simulation:
       time.sleep(self.dt)
       if self.control_enabled:
         #CONTROLLER GOES HERE!
-        u_main = self.opSpacePDGControlLoop()
-        #u = self.opSpaceInverseDynControlLoop()
-        grav = self.GravCompensationControlLoop()
+        u = np.zeros((self.n))
+        #u += self.opSpacePDGControlLoop()
+        u += self.opSpaceInverseDynControlLoop()
+        #u += self.GravCompensationControlLoop()
+        u += self.SDDControl()
         # u_null = self.artificial_repulsion_field_controller(self.getJointAngles())
-
-        u = u_main
-
-        
-
-
-        self.latest_u = u
-
         self.setJointTorques(u)
-
-      
-
 
   def data_log_loop(self):
     time_start = time.time()
@@ -251,7 +244,27 @@ class simulation:
         self.save_data()
         time_start = time.time()
 
+  def getObjVel(self, name):
+    return self.d.body(name).cvel
 
+  def SDDControl(self):
+    k = 50
+    q = self.getJointAngles()
+    pls = [np.array([0,      -0.02561,   0.00193]), np.array([0.2125, 0,          0.11336]), np.array([0.15,   0.0,        0.0265]), np.array([0,      -0.0018,    0.01634]), np.array([0,      -0.02561,   0.00193]), np.array([0.2125, 0,          0.11336]), np.array([0.15,   0.0,        0.0265]), np.array([0,      -0.0018,    0.01634]), np.array([0,      0.0018,     0.01634]), np.array([0,      0,          -0.001159])]
+    gravs = np.zeros((10, 3))
+    for i in range(self.n):
+        Ti = np.array(self.robot.A(i, q))
+        pli = Ti[0:3, 3] - pls[i]
+        o = self.getObjState('blockL01')
+        dist = np.linalg.norm(o - pli)
+        dir = ((o - pli)/np.linalg.norm(o - pli))      
+        gravs[i, :] = dir * k * (1/dist)
+        gravs[i: 0:2] = 0
+    u = rm.dynamicGrav(gravs, q)
+    print(norm(u))
+    u = self.getNullProjMat(q)@u
+    print(norm(u))
+    return u
         
   def jointSpacePDGControlLoop(self):
     # PD controller with gravity compensation
@@ -298,27 +311,25 @@ class simulation:
     F = Fmax_param / np.exp(a*(x**2))
     return F
         
-  def artificial_repulsion_field_controller(self, q):
+  def artificial_repulsion_field_controller(self):
+    link_names = ["base", "shoulder_link", "upper_arm_link", "forearm_link", "wrist_1_link", "ee_link1", "shoulder_link2", "upper_arm_link2", "forearm_link2", "wrist_1_link2", "wrist_2_link2", "wrist_3_link2", "ee_link2"]
+    q = self.getJointAngles()
     u = np.zeros((10)).T
-
-
-    J = self.robot.jacob0(q)
-
-    null_projection = self.getNullProjMat(q)
-
-    u = J.T@np.array([0, 0, 0, 0, 0, -50]).T
-
-
-    u_proj = null_projection@u
-
-
-
-    #print(u_proj)
-    return u_proj
-  
-
-
-
+    for i in range(1, self.n-1):
+      J = self.robot.jacob0(q, self.robot.A(i, q))
+      x_o = self.getObjState('blockL01')
+      x_j = self.getObjState(link_names[i])
+      x_d = ((x_j - x_o)/np.linalg.norm(x_j - x_o))
+      #dist = self.distToCubeSurface(x_o, self.getObjFrame('blockL01'))
+      wrench = np.zeros((6,))
+      wrench[3:] = x_d*20
+      print((J@pinv(J)).shape)
+      u += (np.eye(6) - J@pinv(J))@wrench
+    #print(norm(u))
+    print(norm(u))
+    u = self.getNullProjMat(q)@u
+    print(norm(u))
+    return u
 
   def nullSpacePDControl(self):
     Kp = np.eye(3)*50
@@ -424,8 +435,8 @@ class simulation:
       dim_analytical=7
 
     Kp=np.eye(dim_analytical)
-    Kp[:3,:3]=np.eye(int(np.floor(dim_analytical/2)))*2000 #translational gain
-    Kp[3:,3:]=np.eye(int(np.ceil(dim_analytical/2)))*800#orientational gain
+    Kp[:3,:3]=np.eye(int(np.floor(dim_analytical/2)))*50 #translational gain
+    Kp[3:,3:]=np.eye(int(np.ceil(dim_analytical/2)))*80#orientational gain
     Kd=np.eye(dim_analytical)*1
 
     # get tool orientation quaternion and analytical jacobian
@@ -474,7 +485,7 @@ class simulation:
     dim_analytical=7
     Kp=np.eye(dim_analytical)
     Kp[:3,:3]=np.eye(int(np.floor(dim_analytical/2)))*50 #translational gain
-    Kp[3:,3:]=np.eye(int(np.ceil(dim_analytical/2)))*50#orientational gain
+    Kp[3:,3:]=np.eye(int(np.ceil(dim_analytical/2)))*100#orientational gain
     Kd=np.eye(dim_analytical)*50
 
     # get tool orientation quaternion and analytical jacobian
@@ -722,29 +733,29 @@ if __name__ == "__main__":
   Tgoal=sim.robot.fkine(q_goal)
   Trj=rtb.ctraj(sim.Tref,Tgoal,steps)
 
-  for i in range(len(Trj)):
-    sim.Tref=Trj[i]
-    time.sleep(T/steps)
-
-  for i in reversed(range(len(Trj))):
-    sim.Tref=Trj[i]
-    time.sleep(T/steps)
-
-  time.sleep(3)
-
-  sim.enable_avoidance=1
-  for i in range(len(Trj)):
-    sim.Tref=Trj[i]
-    time.sleep(T/steps)
-
-
   while True:
-    #print("-------------")
-    #print(sim.Tref)
-    #print(sim.robot.fkine(sim.getJointAngles()))
-    #print(sim.getObjFrame(sim.tool_name))
-    time.sleep(2)
+    for i in range(len(Trj)):
+      sim.Tref=Trj[i]
+      time.sleep(T/steps)
 
+    for i in reversed(range(len(Trj))):
+      sim.Tref=Trj[i]
+      time.sleep(T/steps)
+
+    time.sleep(3)
+
+  #sim.enable_avoidance=1
+  #for i in range(len(Trj)):
+  #  sim.Tref=Trj[i]
+  #  time.sleep(T/steps)
+
+
+  #while True:
+  #  #print("-------------")
+  #  #print(sim.Tref)
+  #  #print(sim.robot.fkine(sim.getJointAngles()))
+  #  #print(sim.getObjFrame(sim.tool_name))
+  #  time.sleep(2)
     
 
 
