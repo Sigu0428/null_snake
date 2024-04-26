@@ -16,6 +16,8 @@ from pprint import pprint
 import pickle
 from numpy.linalg import norm, pinv, inv, det
 import robot_matrices as rm
+from mujoco import _functions
+from ctypes import c_int, addressof
 
 class simulation:
 
@@ -74,7 +76,7 @@ class simulation:
     m9 = 1.3
     m10 = 0.365
 
-    self.robot_link_names = ["shoulder_link1", "upper_arm_link", "forarm_link", "wrist_1_link", "ee_link1", "shoulder_link2", "upper_arm_link2", "forarm_link2", "wrist_1_link2", "wrist_2_link2", "wrist_3_link2", "ee_link2"]
+    self.robot_link_names = ["shoulder_link", "upper_arm_link", "forearm_link", "wrist_1_link", "ee_link1", "shoulder_link2", "upper_arm_link2", "forearm_link2", "wrist_1_link2", "wrist_2_link2", "wrist_3_link2", "ee_link2"]
 
     self.robot = rtb.DHRobot( 
         [ 
@@ -108,6 +110,7 @@ class simulation:
     self.xref=np.zeros(6)
     self.Tref=self.robot.fkine(self.qref)
     self.obstacle="blockL01"
+    self.obstacles = ['blockL01', 'blockL02']
     self.enable_avoidance=0
     self.log_u = []
 
@@ -248,23 +251,50 @@ class simulation:
     return self.d.body(name).cvel
 
   def SDDControl(self):
-    k = 50
     q = self.getJointAngles()
     pls = [np.array([0,      -0.02561,   0.00193]), np.array([0.2125, 0,          0.11336]), np.array([0.15,   0.0,        0.0265]), np.array([0,      -0.0018,    0.01634]), np.array([0,      -0.02561,   0.00193]), np.array([0.2125, 0,          0.11336]), np.array([0.15,   0.0,        0.0265]), np.array([0,      -0.0018,    0.01634]), np.array([0,      0.0018,     0.01634]), np.array([0,      0,          -0.001159])]
+    u = np.zeros((self.n))
+    for ob in self.obstacles:
+      gravs = np.zeros((10, 3))
+      for i in range(self.n):
+          Ti = np.array(self.robot.A(i, q))
+          pli = Ti[0:3, 3] - pls[i]
+          o = self.getObjState(ob)
+          dir = ((o - pli)/np.linalg.norm(o - pli))
+          dist = self.raycast(pli, dir)
+          if dist > 0:
+            gravs[i, :] = dir * self.repulsion_force_func(dist, 300, 0.6, 10)
+            gravs[i: 0:2] = 0
+      u += rm.dynamicGrav(gravs, q)
     gravs = np.zeros((10, 3))
     for i in range(self.n):
         Ti = np.array(self.robot.A(i, q))
         pli = Ti[0:3, 3] - pls[i]
-        o = self.getObjState('blockL01')
-        dist = np.linalg.norm(o - pli)
-        dir = ((o - pli)/np.linalg.norm(o - pli))      
-        gravs[i, :] = dir * k * (1/dist)
-        gravs[i: 0:2] = 0
-    u = rm.dynamicGrav(gravs, q)
-    print(norm(u))
+        dir = np.array([0, 0, -1])
+        dist = self.raycast(pli, dir)
+        if dist > 0:
+          gravs[i, :] = dir * self.repulsion_force_func(dist, 300, 0.3, 10)
+          gravs[i: 0:2] = 0
+    u += rm.dynamicGrav(gravs, q)
     u = self.getNullProjMat(q)@u
-    print(norm(u))
     return u
+
+  def raycast(self, pos, dir):
+    # source xd: https://github.com/openai/mujoco-worldgen/blob/master/mujoco_worldgen/util/geometry.py
+    # and https://mujoco.readthedocs.io/en/stable/APIreference/APIfunctions.html
+    c_arr = (c_int*1)(0)
+    dist = _functions.mj_ray(
+      sim.m, #mujoco model
+      sim.d, #mujoco data
+      pos, # starting point of ray np array(3, 1)
+      dir, # direction to cast ray np array(3, 1)
+      np.array([1, 1, 0, 0, 0, 0]).astype(np.uint8), #falgs for enabling collisions with geom groups 0=ground, 1=obstacles, 2=robot vizualization geom, 3=robot collision geom
+      1, #flag that enables collision for static geometry
+      -1, # id of body to exclude. -1 to include all bodies
+      np.array([c_arr]) # output array for id of geometry the ray collided with
+    ) 
+    #collision_geom = c_arr[0] if c_arr[0] != -1 else None
+    return dist
         
   def jointSpacePDGControlLoop(self):
     # PD controller with gravity compensation
@@ -293,7 +323,7 @@ class simulation:
     dist = np.sqrt(max(0, abs(pos[0])-1)**2 + max(0, abs(pos[1])-1)**2 + max(0, abs(pos[2])-1)**2)
     return dist
 
-  def repulsion_force_func(x, Fmax_param, d_param, Fd_param): 
+  def repulsion_force_func(self, x, Fmax_param, d_param, Fd_param): 
     #       │                                
     # F_max-+-....                x: input distance to obstacle                      
     #       │     ....            F_max: force at zero distance                      
@@ -734,6 +764,7 @@ if __name__ == "__main__":
   Trj=rtb.ctraj(sim.Tref,Tgoal,steps)
 
   while True:
+    time.sleep(3)
     for i in range(len(Trj)):
       sim.Tref=Trj[i]
       time.sleep(T/steps)
