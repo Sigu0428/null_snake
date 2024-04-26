@@ -251,15 +251,14 @@ class simulation:
 
         trans_pos = self.get_trans(self.getObjFrame(self.tool_name))
         trans_desired = self.get_trans(self.Tref)
-
+        print(trans_pos)
         
-        self.robot_data_plot.
-        self.log_robot_positions()
-        self.log_desired_position()
-        self.log_u.append(self.latest_u)
+        self.robot_data_plot.put_data_in_list(trans_pos, 0)
+        self.robot_data_plot.put_data_in_list(trans_desired, 1)
+
 
       if time_elapsed > 1:
-        self.save_data()
+        self.robot_data_plot.save_data()
         time_start = time.time()
 
 
@@ -271,16 +270,7 @@ class simulation:
     self.ee_position_data = []
     self.null_position_data = []
     ''' 
-    # get tool orientation quaternion and analytical jacobian
-
-    ee_position = np.zeros((3,4))
-    # relative translation
-    ee_position[:3,3]=np.array(T_ee)[:3,3] #translational error
-    
-    # relative orientation by quaternions:
-    q_ref=UnitQuaternion(T_ee)
-    #q_rel=q_ee.conj()*q_ref
-    ee_position[3:]=q_ref.vec #works with difference, not relative transform
+    return np.array(T_ee)[:3,3]
 
     
 
