@@ -225,7 +225,7 @@ class simulation:
         #u += self.opSpacePDGControlLoop()
         u += self.opSpaceInverseDynControlLoop()
         #u += self.GravCompensationControlLoop()
-        u += self.SDDControl()
+        #u += self.SDDControl()
         # u_null = self.artificial_repulsion_field_controller(self.getJointAngles())
         self.setJointTorques(u)
 
@@ -452,8 +452,8 @@ class simulation:
       # relative orientation by quaternions:
       JA,q_ee,JAdot=self.getAnalyticalJacobian()
       q_ref=UnitQuaternion(self.Tref)
-      #q_rel=q_ee.conj()*q_ref
-      x_tilde[3:]=q_ref.vec-q_ee #works with difference, not relative transform
+      q_rel=q_ref*q_ee.conj()
+      x_tilde[3:]=q_rel#q_ref.vec-q_ee #works with difference, not relative transform
 
     elif mode=="zyz":
       #relative orientation by zyz euler and petercorke analytical jac
@@ -484,9 +484,9 @@ class simulation:
 
     dim_analytical=7
     Kp=np.eye(dim_analytical)
-    Kp[:3,:3]=np.eye(int(np.floor(dim_analytical/2)))*50 #translational gain
-    Kp[3:,3:]=np.eye(int(np.ceil(dim_analytical/2)))*100#orientational gain
-    Kd=np.eye(dim_analytical)*50
+    Kp[:3,:3]=np.eye(int(np.floor(dim_analytical/2)))*10 #translational gain
+    Kp[3:,3:]=np.eye(int(np.ceil(dim_analytical/2)))*200#orientational gain
+    Kd=np.eye(dim_analytical)*1
 
     # get tool orientation quaternion and analytical jacobian
 
@@ -500,10 +500,18 @@ class simulation:
     # relative orientation by quaternions:
     JA,q_ee,JAdot=self.getAnalyticalJacobian()
     q_ref=UnitQuaternion(self.Tref)
-    x_tilde[3:]=q_ref.vec-q_ee #works with difference, 
+    x_tilde[3:]=q_ref.vec-q_ee#works with difference if step small
+    
+    #use linterp step if error too large
+    linterp_tresh=0.1
+    if np.linalg.norm(x_tilde[3:])>linterp_tresh:
+      dir=x_tilde[3:]/np.linalg.norm(x_tilde[3:])
+      q_ref_linterp=q_ee+dir*linterp_tresh
+      x_tilde[3:]=q_ref_linterp-q_ee
+
 
     #xtilde dot: if trajectory is linear interp, this is 0
-    x_tilde_dot=np.zeros(dim_analytical) #velocity error in operational space
+    x_tilde_dot=x_tilde/self.dt #velocity error in operational space
 
     x_desired_ddot=np.zeros(dim_analytical) #desired acceleration
 
@@ -519,7 +527,7 @@ class simulation:
 
     u = gq+B@y + C@dq
  
-    # print((np.linalg.norm(x_tilde[:3]),np.linalg.norm(x_tilde[3:]))) 
+    #print((np.linalg.norm(x_tilde[:3]),np.linalg.norm(x_tilde[3:]))) 
     return u
 
   def opSpaceInverseDynZYZControlLoop(self):
@@ -737,7 +745,7 @@ if __name__ == "__main__":
     for i in range(len(Trj)):
       sim.Tref=Trj[i]
       time.sleep(T/steps)
-
+    time.sleep(10)
     for i in reversed(range(len(Trj))):
       sim.Tref=Trj[i]
       time.sleep(T/steps)
