@@ -10,7 +10,7 @@ WARNING: mju_openResource: unknown file 'Null space Project/Ur5_robot/Robot_scen
 Fri Mar  8 08:49:27 2024
 WARNING: mju_openResource: unknown file '/Ur5_robot/Robot_scene.xml'
 
-Fri Mar  8 09:06:30 2024
+Fri Mar  8 09:06:30 2024fesfesfesfsefs
 ERROR: mjv_updateSceneState: m->nu changed
 
 Fri Mar  8 09:32:02 2024
@@ -157,4 +157,10 @@ ERROR: mjv_updateSceneState: m->nu changed
 
 Wed Apr 24 16:17:52 2024
 ERROR: mjv_updateSceneState: m->nu changed
+
+Fri Apr 26 09:22:32 2024
+WARNING: Nan, Inf or huge value in QACC at DOF 6. The simulation is unstable. Time = 8.1900.
+
+Fri Apr 26 09:22:32 2024
+WARNING: Nan, Inf or huge value in CTRL at ACTUATOR 0. The simulation is unstable. Time = 0.0100.
 
