@@ -84,4 +84,3 @@ if __name__ == "__main__":
 
     robot_data_plot.get_data()
     robot_data_plot.plot(["end effector position", "desired effector position"])
-

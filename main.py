@@ -31,9 +31,11 @@ if __name__ == "__main__":
     OP_inverse_ZYZ_controller = OP_Space_inverse_ZYZ_controller(kp=10, kd=200)
     g = grav_compensation_controller()
     joint_space_PDG = Joint_space_PDG_controller(kp=150, kd=50)
-
-    sim.controllers.append(OP_inverse_controller)
-    sim.nullspace_controllers.append(g)
+    SDD_control = SDD_controller(k=10)
+    
+    sim.controllers.append(g)
+    sim.controllers.append(SDD_control)
+    # sim.nullspace_controllers.append(SDD_control)
 
     sim.start() 
 

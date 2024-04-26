@@ -3,6 +3,8 @@ import roboticstoolbox as rtb
 import spatialmath as sm
 from spatialmath import UnitQuaternion
 from spatialmath.base import q2r, r2x, rotx, roty, rotz,tr2eul,tr2rt
+import robot_matrices as rm
+from numpy.linalg import norm, pinv, inv, det
 
 
 '''
@@ -173,6 +175,38 @@ class Joint_space_PDG_controller:
 
 
 
+class SDD_controller:
+    ''' 
+    This class uses a gravity compensation inspired controller for the robot, where SDD is Sum of directional derivatives.
+    '''
+
+    def __init__(self, k):
+        self.k = k
+
+
+    def get_u(self,sim):
+        '''
+        This function makes all joints move away for the object:
+        note: The function is not multiplied with null space projection.
+        ARGS:
+            sim: the simulator object
+        '''
+
+        
+        q = sim.getJointAngles()
+        pls = [np.array([0,      -0.02561,   0.00193]), np.array([0.2125, 0,          0.11336]), np.array([0.15,   0.0,        0.0265]), np.array([0,      -0.0018,    0.01634]), np.array([0,      -0.02561,   0.00193]), np.array([0.2125, 0,          0.11336]), np.array([0.15,   0.0,        0.0265]), np.array([0,      -0.0018,    0.01634]), np.array([0,      0.0018,     0.01634]), np.array([0,      0,          -0.001159])]
+        gravs = np.zeros((10, 3))
+        for i in range(sim.n):
+            Ti = np.array(sim.robot.A(i, q))
+            pli = Ti[0:3, 3] - pls[i]
+            o = sim.getObjState('blockL01')
+            dist = np.linalg.norm(o - pli)
+            dir = ((o - pli)/np.linalg.norm(o - pli))      
+            gravs[i, :] = dir * self.k * (1/dist)
+            gravs[i: 0:2] = 0
+        u = rm.dynamicGrav(gravs, q)
+        return u
+            
 
 
 # ARCHIVED controllers
