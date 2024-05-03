@@ -1,7 +1,10 @@
 
 import matplotlib.pyplot as plt
 import pickle
-
+from spatialmath import UnitQuaternion
+from spatialmath.base import q2r, r2x,tr2rt
+import spatialmath as sm
+import numpy as np
 
 class robot_plot:
     def __init__(self, robot_name):
@@ -21,24 +24,50 @@ class robot_plot:
         translational_pos = []
 
         for i in range(len(data)):
-            translational_pos.append(data[i][:, 3])
+            
+            t=tr2rt(np.array(data[i]))
+            translational_pos.append(t[1])
         
         return translational_pos
+    
+    def get_orientational(self, data):
+        '''
+        This function gives the translational position of the end effector
+        '''
+
+
+        orientational_pos = []
+
+        for i in range(len(data)):
+
+            R=tr2rt(np.array(data[i]))
+
+            rot=r2x(R[0])
+            orientational_pos.append(rot)
         
+        return orientational_pos
+               
     def plot(self):
         trans_data = self.get_translational(self.ee_pos)
         trans_data_des = self.get_translational(self.ee_des)
 
-        print(trans_data[0].shape)
+        #print(trans_data[0].shape)
 
+
+        rot_data = self.get_orientational(self.ee_pos)
+        rot_data_des = self.get_orientational(self.ee_des)
+        
         #normalize the torque data
 
-        fig, (ax1) = plt.subplots(1, 1)
-        ax1.plot(trans_data[:1000], label='Translational pos')
-        ax1.plot(trans_data_des[:1000], label='Translational pos desired')
-        ax1.set_title('Plot 1')
-        ax1.legend()
-
+        fig, (ax1) = plt.subplots(2, 1)
+        ax1[0].plot(trans_data[:1000], label='translation')
+        ax1[0].plot(trans_data_des[:1000], label='translation desired')
+        ax1[0].set_title('translation')
+        ax1[0].legend(["x","y","z","x_d","y_d","z_d"])
+        ax1[1].plot(rot_data[:1000], label='orientation')
+        ax1[1].plot(rot_data_des[:1000], label='orientation desired')
+        ax1[1].set_title('orientation')
+        ax1[1].legend(["roll","pitch","yaw","roll_d","pitch_d","yaw_d"])
         plt.show()
 
 

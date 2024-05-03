@@ -109,6 +109,8 @@ class simulation:
     self.tool_name="ee_link2"
     self.xref=np.zeros(6)
     self.Tref=self.robot.fkine(self.qref)
+    self.T0=self.robot.fkine(self.q0)
+    self.stepPeriod=self.dt
     self.obstacle="blockL01"
     self.obstacles = ['blockL01', 'blockL02']
     self.enable_avoidance=0
@@ -514,10 +516,10 @@ class simulation:
 
     dim_analytical=7
     Kp=np.eye(dim_analytical)
-    Kp[:3,:3]=np.eye(int(np.floor(dim_analytical/2)))*1 #translational gain
-    Kp[3:,3:]=np.eye(int(np.ceil(dim_analytical/2)))*1#orientational gain
+    Kp[:3,:3]=np.eye(int(np.floor(dim_analytical/2)))*160 #translational gain
+    Kp[3:,3:]=np.eye(int(np.ceil(dim_analytical/2)))*100#orientational gain
 
-    Kd=np.eye(dim_analytical)*1
+    Kd=np.eye(dim_analytical)*60
 
     # get tool orientation quaternion and analytical jacobian
 
@@ -532,6 +534,8 @@ class simulation:
     JA,q_ee,JAdot=self.getAnalyticalJacobian()
     q_ref=UnitQuaternion(self.Tref)
     x_tilde[3:]=q_ref.vec-q_ee#works with difference if step small
+
+    q_0=UnitQuaternion(self.T0)
     #np.set_printoptions(precision=5,suppress=True)
     #print(np.linalg.pinv(JA))
  
@@ -544,7 +548,9 @@ class simulation:
 
     #print(x_tilde[3:])
     #xtilde dot: if trajectory is linear interp, this is constant
-    x_tilde_dot=x_tilde/self.dt #velocity error in operational space
+    x_tilde_dot=np.zeros(dim_analytical) #velocity error in operational space
+    x_tilde_dot[3:]=(q_ref.vec-q_0.vec)/self.stepPeriod
+    x_tilde_dot[:3]=(np.array(self.Tref)[:3,3]-np.array(self.T0)[:3,3])/self.stepPeriod
 
     x_desired_ddot=np.zeros(dim_analytical) #desired acceleration
 
@@ -701,17 +707,7 @@ class simulation:
 
     T_ee=np.array(self.getObjFrame(self.tool_name))
 
-    ee_position = np.zeros((3,4))
-    # relative translation
-    ee_position[:3,3]=np.array(T_ee[:3,3]) #translational error
-    
-
-    # relative orientation by quaternions:
-    q_ref=UnitQuaternion(self.Tref)
-    #q_rel=q_ee.conj()*q_ref
-    ee_position[3:]=q_ref.vec #works with difference, not relative transform
-
-    self.ee_position_data.append(ee_position)
+    self.ee_position_data.append(T_ee)
 
 
 
@@ -723,18 +719,7 @@ class simulation:
     '''
     # get tool orientation quaternion and analytical jacobian
 
-    T_ee_desired=self.Tref
-    ee_position = np.zeros((3,4))
-    # relative translation
-    ee_position[:3,3]=np.array(self.Tref)[:3,3] #translational error
-    
-
-    # relative orientation by quaternions:
-    q_ref=UnitQuaternion(T_ee_desired)
-
-    ee_position[3:]=q_ref.vec #works with difference, not relative transform
-
-    self.ee_desired_data.append(ee_position)
+    self.ee_desired_data.append(self.Tref)
 
 
   def start(self):
@@ -774,14 +759,13 @@ if __name__ == "__main__":
   
 
   q_goal = [np.pi/2 , -np.pi/2.4, np.pi/2.4, -np.pi/2.2, np.pi,-np.pi/1.7,np.pi/1.7 , np.pi/2, -np.pi/2,0] 
-
+  q_viapoint = [-np.pi/4, -np.pi/2.4, np.pi/2.4, -np.pi/2.2, np.pi,-np.pi/1.7,np.pi/1.7 , np.pi/2, -np.pi/2,0] 
 
   steps=[500,100,300]
   T=[5,3,6,3,3]
   #viapoints=[sim.robot.fkine(sim.q0)*sm.SE3.RPY(0,0,np.pi/2)] #zyx rot order
   viapoints=[sim.robot.fkine(q_goal)]
-  viapoints.append(viapoints[-1]*sm.SE3.Trans(0,0.2,0.2)) #relative to prev ee frame
-  viapoints.append(viapoints[-1]*sm.SE3.Trans(-1,0,0))
+  viapoints.append(sim.robot.fkine(q_viapoint))
 
   time.sleep(3)
 
@@ -790,6 +774,9 @@ if __name__ == "__main__":
     print(int(T[j]/sim.dt))
     for i in range(len(Trj)):
       sim.Tref=Trj[i]
+      if i>0:
+        sim.T0=Trj[i-1] # for velocity
+      sim.stepPeriod=T[j]/steps[j]
       time.sleep(T[j]/steps[j])
     time.sleep(2)
   while True:
