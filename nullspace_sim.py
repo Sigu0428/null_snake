@@ -276,8 +276,10 @@ class simulation:
           gravs[i, :] = dir * self.repulsion_force_func(dist, 300, 0.3, 10)
           gravs[i: 0:2] = 0
     u += rm.dynamicGrav(gravs, q)
-    u = self.getNullProjMat(q)@u
+    #u = self.getNullProjMat(q)@u
     return u
+
+
 
   def raycast(self, pos, dir):
     # source xd: https://github.com/openai/mujoco-worldgen/blob/master/mujoco_worldgen/util/geometry.py
@@ -685,18 +687,7 @@ class simulation:
     # get tool orientation quaternion and analytical jacobian
 
     T_ee=np.array(self.getObjFrame(self.tool_name))
-
-    ee_position = np.zeros((3,4))
-    # relative translation
-    ee_position[:3,3]=np.array(T_ee[:3,3]) #translational error
-    
-
-    # relative orientation by quaternions:
-    q_ref=UnitQuaternion(self.Tref)
-    #q_rel=q_ee.conj()*q_ref
-    ee_position[3:]=q_ref.vec #works with difference, not relative transform
-
-    self.ee_position_data.append(ee_position)
+    self.ee_position_data.append(T_ee)
 
 
 
@@ -706,19 +697,7 @@ class simulation:
     given as sim.Tref
     '''
     # get tool orientation quaternion and analytical jacobian
-
-    T_ee_desired=self.Tref
-    ee_position = np.zeros((3,4))
-    # relative translation
-    ee_position[:3,3]=np.array(self.Tref)[:3,3] #translational error
-    
-
-    # relative orientation by quaternions:
-    q_ref=UnitQuaternion(T_ee_desired)
-
-    ee_position[3:]=q_ref.vec #works with difference, not relative transform
-
-    self.ee_desired_data.append(ee_position)
+    self.ee_desired_data.append(self.Tref)
 
 
   def start(self):
