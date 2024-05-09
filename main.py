@@ -40,7 +40,6 @@ if __name__ == "__main__":
     sim.start() 
 
 
-
     steps = 100
     q_goal = [np.pi/2 , -np.pi/2.4, np.pi/2.4, -np.pi/2.2, np.pi,-np.pi/1.7,np.pi/1.7 , np.pi/2, -np.pi/2,0] 
     Tgoal=sim.robot.fkine(q_goal)

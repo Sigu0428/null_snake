@@ -82,7 +82,7 @@ class simulation:
     self.tool_name="ee_link2"
     self.Tref=self.robot.fkine(self.qref)
     self.obstacle="blockL01"
-
+    self.obstacles = ['blockL01', 'blockL02']
 
     # logging of data for plotting:
     self.log_data_enabled = 1
@@ -213,6 +213,7 @@ class simulation:
           time.sleep(time_until_next_step)
 
 
+
   def launch_mujoco_with_control(self):
     '''
     This function launches mujoco together with the control loop and the logging of data
@@ -263,6 +264,7 @@ class simulation:
           time.sleep(time_until_next_step)
     
 
+
   def setJointTorques(self,torques): #set joint torque vector which is applied to simulation from next time step
     with self.jointLock:
       for i in range(0, self.n):
@@ -288,7 +290,8 @@ class simulation:
 
         self.setJointTorques(u)
 
-    
+  
+
 
   def data_log_loop(self):
     '''
@@ -332,6 +335,7 @@ class simulation:
     # https://math.stackexchange.com/questions/2133217/minimal-distance-to-a-cube-in-2d-and-3d-from-a-point-lying-outside
     dist = np.sqrt(max(0, abs(pos[0])-1)**2 + max(0, abs(pos[1])-1)**2 + max(0, abs(pos[2])-1)**2)
     return dist
+
 
 
 
@@ -455,5 +459,20 @@ class simulation:
     
 
 
-
+  def raycast(self, pos, dir):
+    # source xd: https://github.com/openai/mujoco-worldgen/blob/master/mujoco_worldgen/util/geometry.py
+    # and https://mujoco.readthedocs.io/en/stable/APIreference/APIfunctions.html
+    c_arr = (c_int*1)(0)
+    dist = _functions.mj_ray(
+      self.m, #mujoco model
+      self.d, #mujoco data
+      pos, # starting point of ray np array(3, 1)
+      dir, # direction to cast ray np array(3, 1)
+      np.array([1, 1, 0, 0, 0, 0]).astype(np.uint8), #falgs for enabling collisions with geom groups 0=ground, 1=obstacles, 2=robot vizualization geom, 3=robot collision geom
+      1, #flag that enables collision for static geometry
+      -1, # id of body to exclude. -1 to include all bodies
+      np.array([c_arr]) # output array for id of geometry the ray collided with
+    ) 
+    #collision_geom = c_arr[0] if c_arr[0] != -1 else None
+    return dist
 
