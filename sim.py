@@ -65,7 +65,7 @@ class simulation:
     self.d = mujoco.MjData(self.m)
     self.jointTorques = [0 ,0,0,0,0,0,0,0,0,0] #simulation reads these and sends to motors at every time step
     self.dt = 1/100 #control loop update rate
-    self.robot_link_names = ["shoulder_link1", "upper_arm_link", "forarm_link", "wrist_1_link", "ee_link1", "shoulder_link2", "upper_arm_link2", "forarm_link2", "wrist_1_link2", "wrist_2_link2", "wrist_3_link2", "ee_link2"]
+    self.robot_link_names = ["shoulder_link", "upper_arm_link", "forearm_link", "wrist_1_link", "ee_link1", "shoulder_link2", "upper_arm_link2", "forearm_link2", "wrist_1_link2", "wrist_2_link2", "wrist_3_link2", "ee_link2"]
     self.q0=  [0 , -np.pi/2.4, np.pi/2.4, -np.pi/2.2, np.pi,-np.pi/1.7,np.pi/1.7 , np.pi/2, -np.pi/2,0]  # 0, -3*np.pi/4, np.pi/3, np.pi, 0, 0, np.pi/3 , 0, 0,0] #home pose
     self.dq0=[0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
 
@@ -495,8 +495,7 @@ class simulation:
     mujoco_thrd.start()
     
 
-
-  def raycast(self, pos, dir):
+  def raycast(self, pos, dir, mask = np.array([1, 1, 0, 0, 0, 0]).astype(np.uint8)):
     # source xd: https://github.com/openai/mujoco-worldgen/blob/master/mujoco_worldgen/util/geometry.py
     # and https://mujoco.readthedocs.io/en/stable/APIreference/APIfunctions.html
     c_arr = (c_int*1)(0)
@@ -505,36 +504,20 @@ class simulation:
       self.d, #mujoco data
       pos, # starting point of ray np array(3, 1)
       dir, # direction to cast ray np array(3, 1)
-      np.array([1, 1, 0, 0, 0, 0]).astype(np.uint8), #falgs for enabling collisions with geom groups 0=ground, 1=obstacles, 2=robot vizualization geom, 3=robot collision geom
+      mask, #falgs for enabling collisions with geom groups 0=ground, 1=obstacles, 2=robot vizualization geom, 3=robot collision geom
       1, #flag that enables collision for static geometry
       -1, # id of body to exclude. -1 to include all bodies
       np.array([c_arr]) # output array for id of geometry the ray collided with
     ) 
     #collision_geom = c_arr[0] if c_arr[0] != -1 else None
     return dist
+  
+  def raycastAfterRobotGeometry(self, pos, dir):
+    dist = self.raycast(pos, dir, mask = np.array([0, 0, 1, 0, 0, 0]).astype(np.uint8))
+    if dist < 0:
+      return dist
+    dist = self.raycast(pos + dir*dist, dir, mask = np.array([1, 1, 0, 0, 0, 0]).astype(np.uint8))
+    return dist
 
-
-
-  def repulsion_force_func(self, x, Fmax_param, d_param, Fd_param): 
-    #       │                                
-    # F_max-+-....                x: input distance to obstacle                      
-    #       │     ....            F_max: force at zero distance                      
-    #       │         ..          F_d: force at distance d                       
-    #       │           ..                               
-    #       │             ..                            
-    #       │               ..  <--- f(x)=1/exp(x^2)    (gaussian)                 
-    #       │                 ...                       
-    # F_d  -+-                   ....                          
-    #       │                        .....                     
-    #       │                             ........       
-    #       └─────────────────────+───────────────      
-    #       0                     d                                                                                           
-    a = (np.log(1) - np.log(Fd_param/Fmax_param)) / (d_param**2)
-    F = Fmax_param / np.exp(a*(x**2))
-    return F
-
-
-
-
-
-
+  def repulsion_force_func(self, x, magnetude, decayrate):
+    return (magnetude/x)*np.exp(-decayrate*x)

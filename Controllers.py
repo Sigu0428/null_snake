@@ -198,30 +198,27 @@ class SDD_controller:
         '''
 
         q = sim.getJointAngles()
-        pls = [np.array([0,      -0.02561,   0.00193]), np.array([0.2125, 0,          0.11336]), np.array([0.15,   0.0,        0.0265]), np.array([0,      -0.0018,    0.01634]), np.array([0,      -0.02561,   0.00193]), np.array([0.2125, 0,          0.11336]), np.array([0.15,   0.0,        0.0265]), np.array([0,      -0.0018,    0.01634]), np.array([0,      0.0018,     0.01634]), np.array([0,      0,          -0.001159])]
         u = np.zeros((sim.n))
 
         for ob in sim.obstacles:
             gravs = np.zeros((10, 3))
+            o = sim.getObjState(ob)
             for i in range(sim.n):
-                Ti = np.array(sim.robot.A(i, q))
-                pli = Ti[0:3, 3] - pls[i]
-                o = sim.getObjState(ob)
+                pli = sim.getObjState(sim.robot_link_names[i])
                 dir = ((o - pli)/np.linalg.norm(o - pli))
-                dist = sim.raycast(pli, dir)
+                dist = sim.raycastAfterRobotGeometry(pli, dir)
                 if dist > 0:
-                    gravs[i, :] = dir * sim.repulsion_force_func(dist, 300, 0.6, 10)
+                    gravs[i, :] = dir * sim.repulsion_force_func(dist, 20, 0.5)
                     gravs[i: 0:2] = 0
             u += rm.dynamicGrav(gravs, q)
             gravs = np.zeros((10, 3))
 
+        dir = np.array([0, 0, -1])
         for i in range(sim.n):
-            Ti = np.array(sim.robot.A(i, q))
-            pli = Ti[0:3, 3] - pls[i]
-            dir = np.array([0, 0, -1])
+            pli = sim.getObjState(sim.robot_link_names[i])
             dist = sim.raycast(pli, dir)
             if dist > 0:
-                gravs[i, :] = dir * sim.repulsion_force_func(dist, 300, 0.3, 10)
+                gravs[i, :] = dir * sim.repulsion_force_func(dist, 5, 0.5)
                 gravs[i: 0:2] = 0
         u += rm.dynamicGrav(gravs, q)
         u = sim.getNullProjMat(q)@u
