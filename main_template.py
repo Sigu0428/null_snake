@@ -67,15 +67,6 @@ if __name__ == "__main__":
 
 
     # ----------------- Trajectory Generation -----------------
-    time.sleep(2)
-    print("joint states: \n", sim.q0)
-    M = sim.robot.inertia(sim.q0)
-
-
-    p = PrintArray(precision=4, linewidth=150, suppress=True)
-    M // p
-
-    time.sleep(500)
     steps = 100
     q_goal = [np.pi/2 , -np.pi/2.4, np.pi/2.4, -np.pi/2.2, np.pi,-np.pi/1.7,np.pi/1.7 , np.pi/2, -np.pi/2,0] 
     Tgoal=sim.robot.fkine(q_goal)
