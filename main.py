@@ -26,21 +26,24 @@ if __name__ == "__main__":
     sim=simulation()
 
 
-    # Setting controllers
+    # ----------------- Defining controllers for the simulator -----------------
     OP_inverse_controller = OP_Space_inverse_controller(kp=20, kp_ori=20, kd=200)
     OP_inverse_ZYZ_controller = OP_Space_inverse_ZYZ_controller(kp=10, kd=200)
     g = grav_compensation_controller()
     joint_space_PDG = Joint_space_PDG_controller(kp=150, kd=50)
     SDD_control = SDD_controller(k=10)
     
+
+
+    # ----------------- Adding controllers to the simulator -----------------
     sim.controllers.append(OP_inverse_controller)
-
     sim.controllers.append(SDD_control)
-
-
 
     sim.start() 
 
+
+
+    # ----------------- Trajectory Generation -----------------
     time.sleep(3)
     steps = 100
     q_goal = [np.pi/2 , -np.pi/2.4, np.pi/2.4, -np.pi/2.2, np.pi,-np.pi/1.7,np.pi/1.7 , np.pi/2, -np.pi/2,0] 
