@@ -47,3 +47,14 @@ Thumbs.db
 # MUJOCO_LOG #
 ######################
 *.TXT
+
+# Files generated for matlab
+*.mat
+*.stl
+*.urdf
+*.txt
+main.py
+
+
+# Peters "kill on sight" documents"
+kis.py

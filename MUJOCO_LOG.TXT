@@ -164,3 +164,12 @@ ERROR: mjv_updateSceneState: m->nu changed
 Wed May  8 10:20:52 2024
 ERROR: mjv_updateSceneState: m->nu changed
 
+Thu May  9 11:24:01 2024
+WARNING: mju_openResource: unknown file 'Ur_robot/ur5e.xml.xml'
+
+Thu May  9 11:24:09 2024
+WARNING: mju_openResource: unknown file 'Ur_robot/ur5e.xml'
+
+Thu May  9 12:02:14 2024
+ERROR: mjv_updateSceneState: m->nu changed
+
