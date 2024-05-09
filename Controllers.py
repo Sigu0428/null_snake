@@ -17,9 +17,10 @@ class OP_Space_inverse_controller:
     This class implements a OP_SPACE_INVERSE controller
     Remember to set the Kp and Kd gains
     '''
-    def __init__(self, kd=1, kp=1):
-        self.Kp = np.eye(7)*kp
-        self.Kd = np.eye(7)*kd
+    def __init__(self, kd=1, kp=1,kp_ori=1):
+        self.Kp = kp
+        self.kp_ori = kp_ori
+        self.Kd = kd
     
 
         
@@ -31,8 +32,12 @@ class OP_Space_inverse_controller:
                 sim: the simulator object
         '''
 
-
         dim_analytical=7
+        Kp=np.eye(dim_analytical)
+        Kp[:3,:3]=np.eye(int(np.floor(dim_analytical/2)))*self.Kp #translational gain
+        Kp[3:,3:]=np.eye(int(np.ceil(dim_analytical/2)))*self.kp_ori#orientational gain
+        Kd=np.eye(dim_analytical)*self.Kd
+
         # get tool orientation quaternion and analytical jacobian
 
         T_ee=np.array(sim.getObjFrame(sim.tool_name))
@@ -60,7 +65,7 @@ class OP_Space_inverse_controller:
         B = sim.robot.inertia(q)
         C = sim.robot.coriolis(q,dq)
 
-        y = np.linalg.pinv(JA)@(x_desired_ddot+self.Kd@x_tilde_dot+self.Kp@x_tilde-JAdot@dq)
+        y = np.linalg.pinv(JA)@(x_desired_ddot+Kd@x_tilde_dot+Kp@x_tilde-JAdot@dq)
 
         u = gq+B@y + C@dq
     
@@ -219,7 +224,7 @@ class SDD_controller:
                 gravs[i, :] = dir * sim.repulsion_force_func(dist, 300, 0.3, 10)
                 gravs[i: 0:2] = 0
         u += rm.dynamicGrav(gravs, q)
-        u = self.getNullProjMat(q)@u
+        u = sim.getNullProjMat(q)@u
         return u
             
 

@@ -16,8 +16,8 @@ from pprint import pprint
 import pickle
 from plot_robot_log import robot_plot
 import Controllers
-
-
+from mujoco import _functions
+from ctypes import c_int, addressof
 
 class simulation:
 
@@ -88,11 +88,11 @@ class simulation:
     self.log_data_enabled = 1
     self.ee_desired_data = []
     self.ee_position_data = []
-    self.robot_data_plot = robot_plot("null snake", data_folder_name="plot_data", plot_amounts=2)
+    self.log_u = []
+    self.latest_u = np.zeros((10)).T
 
     # The list of controllers used
     self.controllers = [] # List of all controllers to be used in the simulation
-    self.nullspace_controllers = []
 
 
   def initialize_robot(self):
@@ -285,8 +285,11 @@ class simulation:
         for controller in self.controllers:
           u += controller.get_u(self)
 
+
+        '''
         for controller in self.nullspace_controllers:
-          u += self.getNullProjMat(self.getJointAngles())@controller.get_u(self)
+          u += self.getNullProjMat(self.getJointAngles())@controller.get_u(self)   
+        '''
 
         self.setJointTorques(u)
 
@@ -305,17 +308,51 @@ class simulation:
       time.sleep(self.dt)
 
       if self.log_data_enabled:
-
-        trans_pos = self.get_trans(self.getObjFrame(self.tool_name))
-        trans_desired = self.get_trans(self.Tref)
-        
-        self.robot_data_plot.put_data_in_list(trans_pos, 0)
-        self.robot_data_plot.put_data_in_list(trans_desired, 1)
-
+        self.log_robot_positions()
+        self.log_desired_position()
+        self.log_u.append(self.latest_u)
 
       if time_elapsed > 1:
-        self.robot_data_plot.save_data()
+        self.save_data()
         time_start = time.time()
+
+  def log_robot_positions(self):
+    '''
+    This function is for logging the robot positions for both the end effector and the null space controller.
+    The position are used to calculate the velocities of the given instances. The values are logged in the following variables:
+    self.ee_position_data = []
+    self.null_position_data = []
+    ''' 
+    # get tool orientation quaternion and analytical jacobian
+
+    T_ee=np.array(self.getObjFrame(self.tool_name))
+    self.ee_position_data.append(T_ee)
+
+
+  def log_desired_position(self):
+    '''
+    This function logs the desired position of the end effector in the world frame
+    given as sim.Tref
+    '''
+    # get tool orientation quaternion and analytical jacobian
+    self.ee_desired_data.append(self.Tref)
+
+
+
+
+  def save_data(self):
+    '''
+    This function will be used to save the data from the robot. given from the log loop
+    '''
+    with open('robot_end_effector_position.txt', 'wb') as f:
+      pickle.dump(self.ee_position_data, f)
+    
+    with open('robot_end_effector_position_desired.txt', 'wb') as f:
+      pickle.dump(self.ee_desired_data, f)
+    
+    with open('robot_joint_torques.txt', 'wb') as f:
+      pickle.dump(self.log_u, f)
+
 
 
   def get_trans(self, T_ee):
@@ -475,4 +512,29 @@ class simulation:
     ) 
     #collision_geom = c_arr[0] if c_arr[0] != -1 else None
     return dist
+
+
+
+  def repulsion_force_func(self, x, Fmax_param, d_param, Fd_param): 
+    #       │                                
+    # F_max-+-....                x: input distance to obstacle                      
+    #       │     ....            F_max: force at zero distance                      
+    #       │         ..          F_d: force at distance d                       
+    #       │           ..                               
+    #       │             ..                            
+    #       │               ..  <--- f(x)=1/exp(x^2)    (gaussian)                 
+    #       │                 ...                       
+    # F_d  -+-                   ....                          
+    #       │                        .....                     
+    #       │                             ........       
+    #       └─────────────────────+───────────────      
+    #       0                     d                                                                                           
+    a = (np.log(1) - np.log(Fd_param/Fmax_param)) / (d_param**2)
+    F = Fmax_param / np.exp(a*(x**2))
+    return F
+
+
+
+
+
 

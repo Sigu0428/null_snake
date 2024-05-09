@@ -1,29 +1,18 @@
 
 import matplotlib.pyplot as plt
 import pickle
-import numpy as np
 from spatialmath import UnitQuaternion
-
+from spatialmath.base import q2r, r2x,tr2rt
+import spatialmath as sm
+import numpy as np
 
 class robot_plot:
-    def __init__(self, robot_name, data_folder_name, plot_amounts):
+    def __init__(self, robot_name):
         self.robot_name = robot_name
-        self.data_folder_name = data_folder_name
-        self.plot_amounts = plot_amounts
-
-        if plot_amounts <= 0:
-            print("WARNING: no plots are saved")
-        else:
-            self.list_plots = [[] for _ in range(plot_amounts)]
-
-
 
     def get_data(self):
-        self.ee_pos = [[] for _ in range(self.plot_amounts)]
-
-
-        for i in range(len(self.list_plots)):
-            self.ee_pos[i] = pickle.load(open(self.data_folder_name + f"/data_{i}.txt", "rb"))
+        self.ee_pos = pickle.load(open("robot_end_effector_position.txt", "rb"))
+        self.ee_des = pickle.load(open("robot_end_effector_position_desired.txt", "rb"))
 
     
     def get_translational(self, data):
@@ -35,52 +24,59 @@ class robot_plot:
         translational_pos = []
 
         for i in range(len(data)):
-            translational_pos.append(data[i][:, 3])
+            
+            t=tr2rt(np.array(data[i]))
+            translational_pos.append(t[1])
         
         return translational_pos
+    
+    def get_orientational(self, data):
+        '''
+        This function gives the translational position of the end effector
+        '''
+
+
+        orientational_pos = []
+
+        for i in range(len(data)):
+
+            R=tr2rt(np.array(data[i]))
+
+            rot=r2x(R[0])
+            orientational_pos.append(rot)
         
+        return orientational_pos
+               
+    def plot(self):
+        trans_data = self.get_translational(self.ee_pos)
+        trans_data_des = self.get_translational(self.ee_des)
 
-    def plot(self, names):
+        #print(trans_data[0].shape)
 
 
+        rot_data = self.get_orientational(self.ee_pos)
+        rot_data_des = self.get_orientational(self.ee_des)
+        
         #normalize the torque data
 
-        fig, (ax1) = plt.subplots(1, 1)
-        for i in range(len(names)):
-            ax1.plot(self.ee_pos[i], label=names[i])
-
-
-        ax1.set_title('Plot 1')
-        ax1.legend()
-
+        fig, (ax1) = plt.subplots(2, 1)
+        ax1[0].plot(trans_data[:1000], label='translation')
+        ax1[0].plot(trans_data_des[:1000], label='translation desired')
+        ax1[0].set_title('translation')
+        ax1[0].legend(["x","y","z","x_d","y_d","z_d"])
+        ax1[1].plot(rot_data[:1000], label='orientation')
+        ax1[1].plot(rot_data_des[:1000], label='orientation desired')
+        ax1[1].set_title('orientation')
+        ax1[1].legend(["roll","pitch","yaw","roll_d","pitch_d","yaw_d"])
         plt.show()
 
-
-    def put_data_in_list(self, data, plot_index):
-        '''
-        This function takes as input the data that must be saved, and saves it the correct place.
-        '''
-
-        self.list_plots[plot_index].append(data)
-
-
-    def save_data(self):
-        '''
-        This function will be used to save the data from the robot. given from the log loop
-        '''
-        i = 0
-        for data in self.list_plots:
-            with open(f'plot_data/data_{i}.txt', 'wb') as f:
-                pickle.dump(data, f)
-            i += 1
 
 
 
 
 if __name__ == "__main__":
-  
 
-    robot_data_plot = robot_plot("null snake", data_folder_name="plot_data", plot_amounts=2)
+    robot_data_plot = robot_plot("null snake")
 
     robot_data_plot.get_data()
-    robot_data_plot.plot(["end effector position", "desired effector position"])
+    robot_data_plot.plot()
