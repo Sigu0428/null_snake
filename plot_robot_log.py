@@ -30,6 +30,7 @@ class robot_plot:
         
         return translational_pos
     
+    
     def get_orientational(self, data):
         '''
         This function gives the translational position of the end effector
