@@ -18,6 +18,10 @@ from numpy.linalg import norm, pinv, inv, det
 import robot_matrices as rm
 from mujoco import _functions
 from ctypes import c_int, addressof
+
+
+
+
 class PrintArray:
 
     def __init__(self, **kwargs):
@@ -35,6 +39,8 @@ class PrintArray:
         a = inputs[0]
         with np.printoptions(**self._kwargs):
             print(a)
+
+
 class simulation:
 
   def __init__(self):
@@ -191,6 +197,8 @@ class simulation:
           time.sleep(time_until_next_step)
 
   def launch_mujoco_with_control(self):
+
+
     with mujoco.viewer.launch_passive(self.m, self.d) as viewer:
       # Close the viewer automatically after 30 wall-seconds.
 
@@ -246,19 +254,42 @@ class simulation:
     self.xref[:3]=T_ref[:3,3]
     self.xref[3:]=q_ref.vec
     last_time=time.time()
+
+    time_elapsed_list = []
+    theoretical_time_sum = 0
+    time.sleep(self.dt)
     while True:
-      
-      time.sleep(self.dt)
+
+      start_time = time.time()
 
       if self.control_enabled:
         #CONTROLLER GOES HERE!
         u = np.zeros((self.n))
         #u += self.opSpacePDGControlLoop()
+
+
         u += self.opSpaceInverseDynControlLoop()
+
         #u += self.GravCompensationControlLoop()
         #u += self.SDDControl()
         # u_null = self.artificial_repulsion_field_controller(self.getJointAngles())
         self.setJointTorques(u)
+
+
+      time_elapsed = time.time() - start_time
+      sleep_adjust_time = max(0, self.dt - time_elapsed) # Adjusted for time the control loop takes
+      time.sleep(sleep_adjust_time)
+      
+      '''
+      time_elapsed = time.time() - start_time
+      time_elapsed_list.append(time_elapsed)
+
+      if len(time_elapsed_list) % 100 > 0:
+        print(f"Average time per 100 steps: {np.mean(np.asarray(time_elapsed_list))}")
+      '''
+
+      
+
       #print(time.time()-last_time)
       last_time=time.time()
 
@@ -483,7 +514,7 @@ class simulation:
   def getGeometricJacs(self):
 
 
-    h=1e-10
+    h=1e-6 
     #get geometric jacobian from mujoco
     jac=np.zeros((6,self.m.nv))
     id=self.m.body("ee_link2").id
@@ -584,8 +615,8 @@ class simulation:
     lambdamping=1.1
     dim_analytical=7
     Kp=np.eye(dim_analytical)
-    Kp[:3,:3]=np.eye(int(np.floor(dim_analytical/2)))*3000 #translational gain
-    Kp[3:,3:]=np.eye(int(np.ceil(dim_analytical/2)))*3000#orientational gain
+    Kp[:3,:3]=np.eye(int(np.floor(dim_analytical/2)))*2000 #translational gain
+    Kp[3:,3:]=np.eye(int(np.ceil(dim_analytical/2)))*2000#orientational gain
 
     Kd=np.eye(dim_analytical)*50 #velocity gain
 
@@ -629,14 +660,61 @@ class simulation:
  
     #clamp pseudoinverse if manip low
     if np.sqrt(np.linalg.det(JA@JA.T)) >= 1e-2:
-        JA_inv = np.linalg.inv(JA)
+        JA_inv = np.linalg.pinv(JA)
     else:
         JA_inv = np.linalg.pinv(JA, rcond=1e-2)
     y = JA_inv@(x_desired_ddot+Kd@x_tilde_dot+Kp@x_tilde-JAdot@dq)
 
     u = B@y + n
 
- 
+
+    if abs(u[0]) > 1000:
+
+      p = PrintArray(precision=4, linewidth=150, suppress=True)
+
+
+
+      print("\n")
+      print("Inverse jacobian")
+      JA_inv // p
+
+      print("y")
+      y // p
+
+      print("Bias forces")
+      np.asarray(n) // p
+
+      print("jacob_dot")
+      JAdot // p
+
+      print("x_d")
+      x_desired_ddot // p
+
+      print("kd * x_tilde_dot")
+      Kd@x_tilde_dot // p
+
+      print("kp * x_tilde")
+      Kp@x_tilde // p
+
+      print("x_tilde")
+      x_tilde // p
+
+      print("JAdot * dq")
+      JAdot@dq // p
+
+      print("b * y")
+      B@y // p
+
+      print("b")
+      B // p
+
+      print("joint angles: ")
+      np.asarray(self.getJointAngles()) // p
+      
+      print("determinant B")
+      np.linalg.det(B) // p
+
+
     return u
   
   def opSpaceInverseDynControlLooptest(self):
@@ -911,16 +989,12 @@ class simulation:
 if __name__ == "__main__":
   sim=simulation()
   sim.start() 
-  #get ee frame orientation as quaternion
-
-  #pass trajectory to controller
-
 
 
   q_goal = [np.pi/2 , -np.pi/2.4, np.pi/2.4, -np.pi/2.2, np.pi,-np.pi/1.7,np.pi/1.7 , np.pi/2, -np.pi/2,0] 
   q_viapoint = [-np.pi/4, -np.pi/2.4, np.pi/2.4, -np.pi/2.2, np.pi,-np.pi/1.7,np.pi/1.7 , np.pi/2, -np.pi/2,0] 
 
-  steps=[200,60,100]
+  steps=[100,100,100]
   T=[5,3,6,3,3]
   #viapoints=[sim.robot.fkine(sim.q0)*sm.SE3.RPY(0,0,np.pi/2)] #zyx rot order
   viapoints=[sim.robot.fkine(q_goal)]
