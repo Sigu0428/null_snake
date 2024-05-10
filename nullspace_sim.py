@@ -42,7 +42,7 @@ class simulation:
     self.d = mujoco.MjData(self.m)
     self.jointTorques = [0 ,0,0,0,0,0,0,0,0,0] #simulation reads these and sends to motors at every time step
     self.dt = 1/100 #control loop update rate
-
+    self.refmutex=1
     #mujoco.MjvOption.flags[2] = True
     #opt = mujoco.MjvOption()
     #opt.mjRND_REFLECTION = False
@@ -483,7 +483,7 @@ class simulation:
   def getGeometricJacs(self):
 
 
-    h=1e-10
+    h=1e-6
     #get geometric jacobian from mujoco
     jac=np.zeros((6,self.m.nv))
     id=self.m.body("ee_link2").id
@@ -493,7 +493,8 @@ class simulation:
     #integrate joint angles for small timestep h
     q=self.d.qpos
     dq=self.d.qvel
-    q_init=q
+    q_init=np.copy(q)
+    dq_init=np.copy(dq)
     mujoco.mj_integratePos(self.m, q, dq, h)
     
     #update qpos with small step
@@ -513,6 +514,7 @@ class simulation:
 
     #reset q back to beginning
     self.d.qpos=q_init
+    self.d.qvel=dq_init
     #update internal model (kinematics etc) with new vals
     mujoco.mj_kinematics(self.m,self.d)
     mujoco.mj_comPos(self.m,self.d)
@@ -581,14 +583,19 @@ class simulation:
     return u
   
   def opSpaceInverseDynControlLoop(self):
-    lambdamping=1.1
     dim_analytical=7
     Kp=np.eye(dim_analytical)
-    Kp[:3,:3]=np.eye(int(np.floor(dim_analytical/2)))*3000 #translational gain
-    Kp[3:,3:]=np.eye(int(np.ceil(dim_analytical/2)))*3000#orientational gain
+    Kp[:3,:3]=np.eye(int(np.floor(dim_analytical/2)))*1 #translational gain
+    Kp[3:,3:]=np.eye(int(np.ceil(dim_analytical/2)))*1#orientational gain
 
-    Kd=np.eye(dim_analytical)*50 #velocity gain
+    Kd=np.eye(dim_analytical)*1 #velocity gain
 
+    while not self.refmutex: pass
+    self.refmutex=0
+    xref=self.xref
+    dxref=self.dxref
+    ddxref=self.ddxref
+    self.refmutex=1
     # get tool orientation quaternion and analytical jacobian
 
     T_ee=np.array(self.getObjFrame(self.tool_name))
@@ -599,11 +606,11 @@ class simulation:
     x_tilde=np.zeros(dim_analytical)
     # relative translation
 
-    x_tilde[:3]=self.xref[:3]-T_ee[:3,3] #translational error
+    x_tilde[:3]=xref[:3]-T_ee[:3,3] #translational error
     
     # relative orientation by quaternions:
-    JA,q_ee,JAdot=self.getAnalyticalJacobian(Je)
-    q_ref=self.xref[3:]
+    JA,q_ee,JAdot=self.getAnalyticalJacobian(Je,Je_dot)
+    q_ref=xref[3:]
     
     x_tilde[3:]= q_ref-q_ee
 
@@ -614,13 +621,17 @@ class simulation:
     
     x_dot= JA@dq #dx=JA*dq
     
-    x_tilde_dot= self.dxref-x_dot
+    x_tilde_dot= dxref-x_dot
 
-    x_desired_ddot=self.ddxref #desired acceleration
+    x_desired_ddot=ddxref #desired acceleration
 
     #control signal
-    q=self.getJointAngles()
-    
+    q=self.getJointAngles() 
+
+    print(self.robot.jacob0_dot(q,dq))
+    print("------------")
+    print(Je_dot)
+    exit(0)
     #gq= self.robot.gravload(q)
     B = self.getM()
     #C = self.robot.coriolis(q,dq)
@@ -628,12 +639,11 @@ class simulation:
     #print((x_desired_ddot+Kd@x_tilde_dot+Kp@x_tilde-JAdot@dq))
  
     #clamp pseudoinverse if manip low
-    if np.sqrt(np.linalg.det(JA@JA.T)) >= 1e-2:
-        JA_inv = np.linalg.inv(JA)
-    else:
-        JA_inv = np.linalg.pinv(JA, rcond=1e-2)
+    #if np.sqrt(np.real(np.linalg.det(JA@JA.T))) >= 1e-2:
+    #    JA_inv = np.linalg.inv(JA)
+   # else:
+    JA_inv = np.linalg.pinv(JA)
     y = JA_inv@(x_desired_ddot+Kd@x_tilde_dot+Kp@x_tilde-JAdot@dq)
-
     u = B@y + n
 
  
@@ -691,7 +701,7 @@ class simulation:
     #print((x_desired_ddot+Kd@x_tilde_dot+Kp@x_tilde-JAdot@dq))
     y = np.linalg.pinv(JA)@(x_desired_ddot+Kd@x_tilde_dot+Kp@x_tilde-JAdot@dq)
     #np.set_printoptions(precision=5,suppress=True)
-  
+    
     u = gq+C@(self.q0)#+B@y + C@dq
     print(np.linalg.norm(C@(self.q0)))
     #print((np.linalg.norm(x_tilde[:3]),np.linalg.norm(x_tilde[3:]))) 
@@ -741,6 +751,8 @@ class simulation:
 
     y = np.linalg.pinv(JA)@(x_desired_ddot+Kd@x_tilde_dot+Kp@x_tilde-JAdot@dq)
 
+
+    print(y)
     u = B@y + C@dq + gq
 
     print((np.linalg.norm(x_tilde[:3]),np.linalg.norm(x_tilde[3:]))) 
@@ -794,7 +806,7 @@ class simulation:
     dist=np.linalg.norm(self.getObjState(name2)-self.getObjState(name1))
     return dist
   
-  def getAnalyticalJacobian(self,Je):
+  def getAnalyticalJacobian(self,Je,Jedot):
 
     #analytical jac transform for zyz euler angles, petercorke equivalent
     #T_ee=sim.robot.fkine(sim.q0)
@@ -827,13 +839,12 @@ class simulation:
     TA_inv[3:,3:]=0.5*H.T
     TA_inv[:3,:3]=np.eye(3)
 
-
+  
     
     #get ee jacobian in world frame (error is defined in world frame)
     q=self.getJointAngles()
     dq=self.getJointVelocities()
 
-    Jedot=self.robot.jacob0_dot(q,dq)
     #transform to analytical
     Ja = TA_inv@Je
 
@@ -945,10 +956,13 @@ if __name__ == "__main__":
     Tacc=np.gradient(Tvel,T[j]/steps[j],axis=1)
     #print(Tvel[:,:5])
     for i in range(steps[j]):
-
+      while not sim.refmutex: pass
+      sim.refmutex=0
       sim.xref=npTrj[:,i]
       sim.dxref=Tvel[:,i]
       sim.ddxref=Tacc[:,i]
+      sim.refmutex=1
+
       #print(sim.xref[:3])
       time.sleep(T[j]/steps[j])
     time.sleep(2)
