@@ -67,7 +67,7 @@ class simulation:
     self.dt = 1/100 #control loop update rate
     self.robot_link_names = ["shoulder_link", "upper_arm_link", "forearm_link", "wrist_1_link", "ee_link1", "shoulder_link2", "upper_arm_link2", "forearm_link2", "wrist_1_link2", "wrist_2_link2", "wrist_3_link2", "ee_link2"]
     self.q0=  [0 , -np.pi/2.4, np.pi/2.4, -np.pi/2.2, np.pi,-np.pi/1.7,np.pi/1.7 , np.pi/2, -np.pi/2,0]  # 0, -3*np.pi/4, np.pi/3, np.pi, 0, 0, np.pi/3 , 0, 0,0] #home pose
-    self.dq0=[0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    self.dq0= [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
 
 
     # Peter corke robot model initialization
