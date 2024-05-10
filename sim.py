@@ -83,6 +83,7 @@ class simulation:
     self.Tref=self.robot.fkine(self.qref)
     self.obstacle="blockL01"
     self.obstacles = ['blockL01', 'blockL02']
+    self.refmutex=1
     self.xref=np.zeros(7)#xyz wv1v2v3
     self.dxref=np.zeros(7)#xyz wv1v2v3 
     self.ddxref=np.zeros(7) #xyz wv1v2v3 
@@ -293,7 +294,7 @@ class simulation:
 
   def getGeometricJacs(self):
 
-      h=1e-6 
+      h=1e-6
       #get geometric jacobian from mujoco
       jac=np.zeros((6,self.m.nv))
       id=self.m.body("ee_link2").id
@@ -301,9 +302,9 @@ class simulation:
       Je=jac[:,-10:] #CHANGES IF DIFFERENT BODIES ADDED
 
       #integrate joint angles for small timestep h
-      q=self.d.qpos
-      dq=self.d.qvel
-      q_init=q
+      q=np.copy(self.d.qpos)
+      dq=np.copy(self.d.qvel)
+      q_init=np.copy(q)
       mujoco.mj_integratePos(self.m, q, dq, h)
       
       #update qpos with small step
@@ -319,7 +320,7 @@ class simulation:
       Jeh=jach[:,-10:] #CHANGES IF DIFFERENT BODIES ADDEDs
 
       #finite differences
-      Je_dot=(Jeh-Je)/h
+      Je_dot=(Jeh-Je)/0.01 #why does this shit work
 
       #reset q back to beginning
       self.d.qpos=q_init
@@ -515,7 +516,7 @@ class simulation:
     dist=np.linalg.norm(self.getObjState(name2)-self.getObjState(name1))
     return dist
   
-  def getAnalyticalJacobian(self,Je):
+  def getAnalyticalJacobian(self,Je,Jedot):
 
     #analytical jac transform for zyz euler angles, petercorke equivalent
     #T_ee=sim.robot.fkine(sim.q0)
@@ -554,7 +555,6 @@ class simulation:
     q=self.getJointAngles()
     dq=self.getJointVelocities()
 
-    Jedot=self.robot.jacob0_dot(q,dq)
     #transform to analytical
     Ja = TA_inv@Je
 
