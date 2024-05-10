@@ -25,11 +25,10 @@ class robot_plot:
 
         for i in range(len(data)):
             
-            t=tr2rt(np.array(data[i]))
-            translational_pos.append(t[1])
+            
+            translational_pos.append(data[i][:3])
         
         return translational_pos
-    
     
     def get_orientational(self, data):
         '''
@@ -41,9 +40,9 @@ class robot_plot:
 
         for i in range(len(data)):
 
-            R=tr2rt(np.array(data[i]))
+            R=q2r(data[i][3:])
 
-            rot=r2x(R[0])
+            rot=r2x(R)
             orientational_pos.append(rot)
         
         return orientational_pos
@@ -65,6 +64,7 @@ class robot_plot:
         trans_data_des_np = np.asarray(trans_data_des)
         rot_data_np = np.asarray(rot_data)
         rot_data_des_np = np.asarray(rot_data_des)
+
 
         ax1[0].plot(trans_data_np[:1000,0], label='translation', color='red')
         ax1[0].plot(trans_data_des_np[:1000,0], label='translation desired',linestyle='--', linewidth=1.0, color='red')
@@ -99,7 +99,6 @@ class robot_plot:
         ax1[1].set_title('orientation')
         ax1[1].legend(["roll","pitch","yaw","roll_d","pitch_d","yaw_d"])
         plt.show()
-
 
 
 

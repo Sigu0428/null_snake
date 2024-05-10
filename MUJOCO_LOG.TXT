@@ -173,3 +173,381 @@ WARNING: mju_openResource: unknown file 'Ur_robot/ur5e.xml'
 Thu May  9 12:02:14 2024
 ERROR: mjv_updateSceneState: m->nu changed
 
+Fri May 10 15:49:32 2024
+WARNING: Nan, Inf or huge value in QACC at DOF 21. The simulation is unstable. Time = 36.0400.
+
+Fri May 10 15:49:32 2024
+WARNING: Nan, Inf or huge value in CTRL at ACTUATOR 0. The simulation is unstable. Time = 0.0100.
+
+Fri May 10 15:49:33 2024
+WARNING: Nan, Inf or huge value in CTRL at ACTUATOR 0. The simulation is unstable. Time = 0.0200.
+
+Fri May 10 15:49:33 2024
+WARNING: Nan, Inf or huge value in CTRL at ACTUATOR 0. The simulation is unstable. Time = 0.1000.
+
+Fri May 10 15:49:33 2024
+WARNING: Nan, Inf or huge value in CTRL at ACTUATOR 0. The simulation is unstable. Time = 0.1100.
+
+Fri May 10 15:49:34 2024
+WARNING: Nan, Inf or huge value in CTRL at ACTUATOR 0. The simulation is unstable. Time = 0.0100.
+
+Fri May 10 15:49:34 2024
+WARNING: Nan, Inf or huge value in CTRL at ACTUATOR 0. The simulation is unstable. Time = 0.0100.
+
+Fri May 10 15:49:35 2024
+WARNING: Nan, Inf or huge value in CTRL at ACTUATOR 0. The simulation is unstable. Time = 0.0100.
+
+Fri May 10 15:49:35 2024
+WARNING: Nan, Inf or huge value in CTRL at ACTUATOR 0. The simulation is unstable. Time = 0.0900.
+
+Fri May 10 15:49:35 2024
+WARNING: Nan, Inf or huge value in CTRL at ACTUATOR 0. The simulation is unstable. Time = 0.0900.
+
+Fri May 10 15:49:36 2024
+WARNING: Nan, Inf or huge value in CTRL at ACTUATOR 1. The simulation is unstable. Time = 0.0100.
+
+Fri May 10 15:49:36 2024
+WARNING: Nan, Inf or huge value in CTRL at ACTUATOR 0. The simulation is unstable. Time = 0.0100.
+
+Fri May 10 15:49:36 2024
+WARNING: Nan, Inf or huge value in CTRL at ACTUATOR 0. The simulation is unstable. Time = 0.0100.
+
+Fri May 10 15:49:37 2024
+WARNING: Nan, Inf or huge value in CTRL at ACTUATOR 1. The simulation is unstable. Time = 0.1000.
+
+Fri May 10 15:49:37 2024
+WARNING: Nan, Inf or huge value in CTRL at ACTUATOR 0. The simulation is unstable. Time = 0.1200.
+
+Fri May 10 15:49:37 2024
+WARNING: Nan, Inf or huge value in CTRL at ACTUATOR 0. The simulation is unstable. Time = 0.0100.
+
+Fri May 10 15:49:37 2024
+WARNING: Nan, Inf or huge value in CTRL at ACTUATOR 0. The simulation is unstable. Time = 0.0100.
+
+Fri May 10 15:49:37 2024
+WARNING: Nan, Inf or huge value in CTRL at ACTUATOR 0. The simulation is unstable. Time = 0.0100.
+
+Fri May 10 15:49:38 2024
+WARNING: Nan, Inf or huge value in CTRL at ACTUATOR 0. The simulation is unstable. Time = 0.0100.
+
+Fri May 10 15:49:38 2024
+WARNING: Nan, Inf or huge value in CTRL at ACTUATOR 0. The simulation is unstable. Time = 0.0900.
+
+Fri May 10 15:49:38 2024
+WARNING: Nan, Inf or huge value in CTRL at ACTUATOR 0. The simulation is unstable. Time = 0.0100.
+
+Fri May 10 15:49:38 2024
+WARNING: Nan, Inf or huge value in CTRL at ACTUATOR 0. The simulation is unstable. Time = 0.0100.
+
+Fri May 10 15:49:38 2024
+WARNING: Nan, Inf or huge value in CTRL at ACTUATOR 0. The simulation is unstable. Time = 0.0100.
+
+Fri May 10 15:49:38 2024
+WARNING: Nan, Inf or huge value in CTRL at ACTUATOR 0. The simulation is unstable. Time = 0.0100.
+
+Fri May 10 15:49:38 2024
+WARNING: Nan, Inf or huge value in CTRL at ACTUATOR 0. The simulation is unstable. Time = 0.0100.
+
+Fri May 10 15:49:38 2024
+WARNING: Nan, Inf or huge value in CTRL at ACTUATOR 0. The simulation is unstable. Time = 0.0100.
+
+Fri May 10 15:49:39 2024
+WARNING: Nan, Inf or huge value in CTRL at ACTUATOR 0. The simulation is unstable. Time = 0.0100.
+
+Fri May 10 15:49:39 2024
+WARNING: Nan, Inf or huge value in CTRL at ACTUATOR 0. The simulation is unstable. Time = 0.0100.
+
+Fri May 10 15:49:39 2024
+WARNING: Nan, Inf or huge value in CTRL at ACTUATOR 0. The simulation is unstable. Time = 0.1500.
+
+Fri May 10 15:49:39 2024
+WARNING: Nan, Inf or huge value in CTRL at ACTUATOR 0. The simulation is unstable. Time = 0.0100.
+
+Fri May 10 15:49:40 2024
+WARNING: Nan, Inf or huge value in CTRL at ACTUATOR 0. The simulation is unstable. Time = 0.0900.
+
+Fri May 10 15:49:40 2024
+WARNING: Nan, Inf or huge value in CTRL at ACTUATOR 0. The simulation is unstable. Time = 0.0800.
+
+Fri May 10 15:49:40 2024
+WARNING: Nan, Inf or huge value in CTRL at ACTUATOR 0. The simulation is unstable. Time = 0.0100.
+
+Fri May 10 15:50:13 2024
+ERROR: mjv_updateSceneState: m->nu changed
+
+Fri May 10 15:52:34 2024
+WARNING: Nan, Inf or huge value in QACC at DOF 19. The simulation is unstable. Time = 0.3600.
+
+Fri May 10 15:52:34 2024
+WARNING: Nan, Inf or huge value in CTRL at ACTUATOR 0. The simulation is unstable. Time = 0.1400.
+
+Fri May 10 15:52:35 2024
+WARNING: Nan, Inf or huge value in CTRL at ACTUATOR 0. The simulation is unstable. Time = 0.0900.
+
+Fri May 10 15:52:35 2024
+WARNING: Nan, Inf or huge value in CTRL at ACTUATOR 0. The simulation is unstable. Time = 0.0900.
+
+Fri May 10 15:52:35 2024
+WARNING: Nan, Inf or huge value in CTRL at ACTUATOR 0. The simulation is unstable. Time = 0.0900.
+
+Fri May 10 15:52:35 2024
+WARNING: Nan, Inf or huge value in CTRL at ACTUATOR 0. The simulation is unstable. Time = 0.0900.
+
+Fri May 10 15:52:36 2024
+WARNING: Nan, Inf or huge value in CTRL at ACTUATOR 0. The simulation is unstable. Time = 0.0900.
+
+Fri May 10 15:52:36 2024
+WARNING: Nan, Inf or huge value in CTRL at ACTUATOR 0. The simulation is unstable. Time = 0.0100.
+
+Fri May 10 15:52:36 2024
+WARNING: Nan, Inf or huge value in CTRL at ACTUATOR 0. The simulation is unstable. Time = 0.0100.
+
+Fri May 10 15:52:37 2024
+WARNING: Nan, Inf or huge value in CTRL at ACTUATOR 0. The simulation is unstable. Time = 0.0100.
+
+Fri May 10 15:53:33 2024
+WARNING: Nan, Inf or huge value in QACC at DOF 12. The simulation is unstable. Time = 0.3400.
+
+Fri May 10 15:53:33 2024
+WARNING: Nan, Inf or huge value in CTRL at ACTUATOR 0. The simulation is unstable. Time = 0.0100.
+
+Fri May 10 15:53:34 2024
+WARNING: Nan, Inf or huge value in CTRL at ACTUATOR 0. The simulation is unstable. Time = 0.0900.
+
+Fri May 10 15:53:34 2024
+WARNING: Nan, Inf or huge value in CTRL at ACTUATOR 0. The simulation is unstable. Time = 0.1700.
+
+Fri May 10 15:53:34 2024
+WARNING: Nan, Inf or huge value in CTRL at ACTUATOR 1. The simulation is unstable. Time = 0.1200.
+
+Fri May 10 15:53:35 2024
+WARNING: Nan, Inf or huge value in CTRL at ACTUATOR 0. The simulation is unstable. Time = 0.0100.
+
+Fri May 10 15:53:35 2024
+WARNING: Nan, Inf or huge value in CTRL at ACTUATOR 1. The simulation is unstable. Time = 0.0100.
+
+Fri May 10 16:03:21 2024
+ERROR: mjv_updateSceneState: m->nu changed
+
+Fri May 10 16:05:19 2024
+WARNING: Nan, Inf or huge value in QACC at DOF 12. The simulation is unstable. Time = 0.1300.
+
+Fri May 10 16:05:19 2024
+WARNING: Nan, Inf or huge value in CTRL at ACTUATOR 0. The simulation is unstable. Time = 0.0100.
+
+Fri May 10 16:05:19 2024
+WARNING: Nan, Inf or huge value in CTRL at ACTUATOR 1. The simulation is unstable. Time = 0.0100.
+
+Fri May 10 16:05:19 2024
+WARNING: Nan, Inf or huge value in CTRL at ACTUATOR 0. The simulation is unstable. Time = 0.0600.
+
+Fri May 10 16:05:19 2024
+WARNING: Nan, Inf or huge value in CTRL at ACTUATOR 0. The simulation is unstable. Time = 0.0600.
+
+Fri May 10 16:05:19 2024
+WARNING: Nan, Inf or huge value in CTRL at ACTUATOR 0. The simulation is unstable. Time = 0.0100.
+
+Fri May 10 16:05:19 2024
+WARNING: Nan, Inf or huge value in CTRL at ACTUATOR 0. The simulation is unstable. Time = 0.0600.
+
+Fri May 10 16:05:19 2024
+WARNING: Nan, Inf or huge value in CTRL at ACTUATOR 0. The simulation is unstable. Time = 0.0100.
+
+Fri May 10 16:05:20 2024
+WARNING: Nan, Inf or huge value in CTRL at ACTUATOR 0. The simulation is unstable. Time = 0.0100.
+
+Fri May 10 16:05:20 2024
+WARNING: Nan, Inf or huge value in CTRL at ACTUATOR 0. The simulation is unstable. Time = 0.0600.
+
+Fri May 10 16:05:20 2024
+WARNING: Nan, Inf or huge value in CTRL at ACTUATOR 1. The simulation is unstable. Time = 0.0100.
+
+Fri May 10 16:05:20 2024
+WARNING: Nan, Inf or huge value in CTRL at ACTUATOR 0. The simulation is unstable. Time = 0.0100.
+
+Fri May 10 16:05:20 2024
+WARNING: Nan, Inf or huge value in CTRL at ACTUATOR 0. The simulation is unstable. Time = 0.0100.
+
+Fri May 10 16:05:20 2024
+WARNING: Nan, Inf or huge value in CTRL at ACTUATOR 0. The simulation is unstable. Time = 0.0200.
+
+Fri May 10 16:07:58 2024
+WARNING: Inertia matrix is too close to singular at DOF 20. Check model. Time = 0.6100.
+
+Fri May 10 16:07:58 2024
+WARNING: Nan, Inf or huge value in QACC at DOF 0. The simulation is unstable. Time = 0.6100.
+
+Fri May 10 16:07:58 2024
+WARNING: Nan, Inf or huge value in CTRL at ACTUATOR 0. The simulation is unstable. Time = 0.0100.
+
+Fri May 10 16:08:26 2024
+ERROR: mjv_updateSceneState: m->nu changed
+
+Fri May 10 16:10:49 2024
+WARNING: Inertia matrix is too close to singular at DOF 15. Check model. Time = 3.2200.
+
+Fri May 10 16:10:49 2024
+WARNING: Nan, Inf or huge value in QACC at DOF 0. The simulation is unstable. Time = 3.2200.
+
+Fri May 10 16:10:49 2024
+WARNING: Nan, Inf or huge value in CTRL at ACTUATOR 1. The simulation is unstable. Time = 0.1100.
+
+Fri May 10 16:10:58 2024
+WARNING: Inertia matrix is too close to singular at DOF 21. Check model. Time = 1.6000.
+
+Fri May 10 16:10:58 2024
+WARNING: Linesearch objective is not convex
+
+Fri May 10 16:10:58 2024
+WARNING: Linesearch objective is not convex
+
+Fri May 10 16:10:58 2024
+WARNING: Linesearch objective is not convex
+
+Fri May 10 16:10:58 2024
+WARNING: Linesearch objective is not convex
+
+Fri May 10 16:10:58 2024
+WARNING: Linesearch objective is not convex
+
+Fri May 10 16:10:58 2024
+WARNING: Linesearch objective is not convex
+
+Fri May 10 16:10:58 2024
+WARNING: Linesearch objective is not convex
+
+Fri May 10 16:10:58 2024
+WARNING: Linesearch objective is not convex
+
+Fri May 10 16:10:58 2024
+WARNING: Linesearch objective is not convex
+
+Fri May 10 16:10:58 2024
+WARNING: Linesearch objective is not convex
+
+Fri May 10 16:10:58 2024
+WARNING: Linesearch objective is not convex
+
+Fri May 10 16:10:58 2024
+WARNING: Linesearch objective is not convex
+
+Fri May 10 16:10:58 2024
+WARNING: Linesearch objective is not convex
+
+Fri May 10 16:10:58 2024
+WARNING: Linesearch objective is not convex
+
+Fri May 10 16:10:58 2024
+WARNING: Linesearch objective is not convex
+
+Fri May 10 16:10:58 2024
+WARNING: Linesearch objective is not convex
+
+Fri May 10 16:10:58 2024
+WARNING: Linesearch objective is not convex
+
+Fri May 10 16:10:58 2024
+WARNING: Linesearch objective is not convex
+
+Fri May 10 16:10:58 2024
+WARNING: Linesearch objective is not convex
+
+Fri May 10 16:10:58 2024
+WARNING: Linesearch objective is not convex
+
+Fri May 10 16:10:58 2024
+WARNING: Linesearch objective is not convex
+
+Fri May 10 16:10:58 2024
+WARNING: Linesearch objective is not convex
+
+Fri May 10 16:10:58 2024
+WARNING: Linesearch objective is not convex
+
+Fri May 10 16:10:58 2024
+WARNING: Linesearch objective is not convex
+
+Fri May 10 16:10:58 2024
+WARNING: Linesearch objective is not convex
+
+Fri May 10 16:10:58 2024
+WARNING: Linesearch objective is not convex
+
+Fri May 10 16:10:58 2024
+WARNING: Linesearch objective is not convex
+
+Fri May 10 16:10:58 2024
+WARNING: Linesearch objective is not convex
+
+Fri May 10 16:10:58 2024
+WARNING: Linesearch objective is not convex
+
+Fri May 10 16:10:58 2024
+WARNING: Linesearch objective is not convex
+
+Fri May 10 16:10:58 2024
+WARNING: Linesearch objective is not convex
+
+Fri May 10 16:10:58 2024
+WARNING: Linesearch objective is not convex
+
+Fri May 10 16:10:58 2024
+WARNING: Linesearch objective is not convex
+
+Fri May 10 16:10:58 2024
+WARNING: Linesearch objective is not convex
+
+Fri May 10 16:10:58 2024
+WARNING: Linesearch objective is not convex
+
+Fri May 10 16:10:58 2024
+WARNING: Linesearch objective is not convex
+
+Fri May 10 16:10:58 2024
+WARNING: Linesearch objective is not convex
+
+Fri May 10 16:10:58 2024
+WARNING: Linesearch objective is not convex
+
+Fri May 10 16:10:58 2024
+WARNING: Linesearch objective is not convex
+
+Fri May 10 16:10:58 2024
+WARNING: Linesearch objective is not convex
+
+Fri May 10 16:10:58 2024
+WARNING: Linesearch objective is not convex
+
+Fri May 10 16:10:58 2024
+WARNING: Linesearch objective is not convex
+
+Fri May 10 16:10:58 2024
+WARNING: Linesearch objective is not convex
+
+Fri May 10 16:10:58 2024
+WARNING: Linesearch objective is not convex
+
+Fri May 10 16:10:58 2024
+WARNING: Linesearch objective is not convex
+
+Fri May 10 16:10:58 2024
+WARNING: Linesearch objective is not convex
+
+Fri May 10 16:10:58 2024
+WARNING: Linesearch objective is not convex
+
+Fri May 10 16:10:58 2024
+WARNING: Linesearch objective is not convex
+
+Fri May 10 16:10:58 2024
+WARNING: Linesearch objective is not convex
+
+Fri May 10 16:10:58 2024
+WARNING: Linesearch objective is not convex
+
+Fri May 10 16:10:58 2024
+WARNING: Nan, Inf or huge value in QACC at DOF 0. The simulation is unstable. Time = 1.6000.
+
+Fri May 10 16:10:58 2024
+WARNING: Nan, Inf or huge value in CTRL at ACTUATOR 0. The simulation is unstable. Time = 0.0100.
+

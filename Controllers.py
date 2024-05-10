@@ -73,6 +73,79 @@ class OP_Space_inverse_controller:
         return u
 
 
+class OP_Space_controller:
+    '''
+    Follows trajectory better, maybe small probability of instability
+    '''
+
+    def __init__(self, kd=1, kp_trans=1,kp_ori=1):
+        self.kp_trans = kp_trans
+        self.kp_ori = kp_ori
+        self.kd = kd
+
+
+    def get_u(self, sim):
+        lambdamping=1.1
+        dim_analytical=7
+        Kp=np.eye(dim_analytical)
+        Kp[:3,:3]=np.eye(int(np.floor(dim_analytical/2)))*self.kp_trans #translational gain
+        Kp[3:,3:]=np.eye(int(np.ceil(dim_analytical/2)))*self.kp_ori #orientational gain
+
+        Kd=np.eye(dim_analytical)*self.kd #velocity gain
+
+        # get tool orientation quaternion and analytical jacobian
+
+        T_ee=np.array(sim.getObjFrame(sim.tool_name))
+
+        Je,Je_dot=sim.getGeometricJacs()
+
+
+        # xtilde
+        x_tilde=np.zeros(dim_analytical)
+        # relative translation
+
+        x_tilde[:3]=sim.xref[:3]-T_ee[:3,3] #translational error
+        
+        # relative orientation by quaternions:
+        JA,q_ee,JAdot=sim.getAnalyticalJacobian(Je)
+        q_ref=sim.xref[3:]
+        
+        x_tilde[3:]= q_ref-q_ee
+
+        # velocity error 
+
+        x_tilde_dot=np.zeros(dim_analytical) 
+        dq = np.array(sim.getJointVelocities())
+        
+        x_dot= JA@dq #dx=JA*dq
+        
+        x_tilde_dot= sim.dxref-x_dot
+
+        x_desired_ddot=sim.ddxref #desired acceleration
+
+        #control signal
+        q=sim.getJointAngles()
+        
+        #gq= self.robot.gravload(q)
+        B = sim.getM()
+        #C = self.robot.coriolis(q,dq)
+        n=sim.getBiasForces()
+        #print((x_desired_ddot+Kd@x_tilde_dot+Kp@x_tilde-JAdot@dq))
+    
+        #clamp pseudoinverse if manip low
+        if np.sqrt(np.linalg.det(JA@JA.T)) >= 1e-2:
+            JA_inv = np.linalg.pinv(JA)
+        else:
+            JA_inv = np.linalg.pinv(JA, rcond=1e-2)
+        y = JA_inv@(x_desired_ddot+Kd@x_tilde_dot+Kp@x_tilde-JAdot@dq)
+
+        u = B@y + n
+
+        return u
+    
+
+
+
 class OP_Space_inverse_ZYZ_controller:
   
     def __init__(self, kd=1, kp=1):
@@ -208,7 +281,7 @@ class SDD_controller:
                 dir = ((o - pli)/np.linalg.norm(o - pli))
                 dist = sim.raycastAfterRobotGeometry(pli, dir)
                 if dist > 0:
-                    gravs[i, :] = dir * sim.repulsion_force_func(dist, 20, 0.5)
+                    gravs[i, :] = dir * sim.repulsion_force_func(dist, 20, 0.5) * self.k
                     gravs[i: 0:2] = 0
             u += rm.dynamicGrav(gravs, q)
             gravs = np.zeros((10, 3))
@@ -218,7 +291,7 @@ class SDD_controller:
             pli = sim.getObjState(sim.robot_link_names[i])
             dist = sim.raycast(pli, dir)
             if dist > 0:
-                gravs[i, :] = dir * sim.repulsion_force_func(dist, 5, 0.5)
+                gravs[i, :] = dir * sim.repulsion_force_func(dist, 5, 0.5) * self.k
                 gravs[i: 0:2] = 0
         u += rm.dynamicGrav(gravs, q)
         u = sim.getNullProjMat(q)@u

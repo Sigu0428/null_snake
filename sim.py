@@ -64,7 +64,7 @@ class simulation:
     self.m = mujoco.MjModel.from_xml_path('./Ur5_robot/Robot_scene.xml')
     self.d = mujoco.MjData(self.m)
     self.jointTorques = [0 ,0,0,0,0,0,0,0,0,0] #simulation reads these and sends to motors at every time step
-    self.dt = 1/100 #control loop update rate
+    self.dt = 1/40 #control loop update rate
     self.robot_link_names = ["shoulder_link", "upper_arm_link", "forearm_link", "wrist_1_link", "ee_link1", "shoulder_link2", "upper_arm_link2", "forearm_link2", "wrist_1_link2", "wrist_2_link2", "wrist_3_link2", "ee_link2"]
     self.q0=  [0 , -np.pi/2.4, np.pi/2.4, -np.pi/2.2, np.pi,-np.pi/1.7,np.pi/1.7 , np.pi/2, -np.pi/2,0]  # 0, -3*np.pi/4, np.pi/3, np.pi, 0, 0, np.pi/3 , 0, 0,0] #home pose
     self.dq0= [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
@@ -83,6 +83,12 @@ class simulation:
     self.Tref=self.robot.fkine(self.qref)
     self.obstacle="blockL01"
     self.obstacles = ['blockL01', 'blockL02']
+    self.xref=np.zeros(7)#xyz wv1v2v3
+    self.dxref=np.zeros(7)#xyz wv1v2v3 
+    self.ddxref=np.zeros(7) #xyz wv1v2v3 
+    self.Mpty=np.zeros((self.m.nv, self.m.nv))
+
+
 
     # logging of data for plotting:
     self.log_data_enabled = 1
@@ -174,6 +180,14 @@ class simulation:
     self.n=self.robot.n
     self.q0=self.q0[:self.n]
     self.T_EE_TCP=sm.SE3.Trans(0.0823,0,0)
+
+
+
+  def getBiasForces(self):
+    qf=[]
+    for i in range(0, self.n):
+      qf.append(float(self.d.joint(f"joint{i+1}").qfrc_bias)) 
+    return qf
 
 
   def launch_mujoco(self):
@@ -271,13 +285,71 @@ class simulation:
         self.jointTorques[i] = torques[i]
       self.sendPositions = True
   
+
+
+  def getM(self):
+    L = mujoco.mj_fullM(self.m,self.Mpty , self.d.qM)
+    return np.copy(self.Mpty[-10:,-10:]) #CHANGES IF DIFFERENT BODIES ADDED
+
+  def getGeometricJacs(self):
+
+      h=1e-6 
+      #get geometric jacobian from mujoco
+      jac=np.zeros((6,self.m.nv))
+      id=self.m.body("ee_link2").id
+      mujoco.mj_jacBody(self.m, self.d, jac[:3], jac[3:], id)
+      Je=jac[:,-10:] #CHANGES IF DIFFERENT BODIES ADDED
+
+      #integrate joint angles for small timestep h
+      q=self.d.qpos
+      dq=self.d.qvel
+      q_init=q
+      mujoco.mj_integratePos(self.m, q, dq, h)
+      
+      #update qpos with small step
+      self.d.qpos=q
+
+      #update internal model (kinematics etc) with new vals
+      mujoco.mj_kinematics(self.m,self.d)
+      mujoco.mj_comPos(self.m,self.d)
+
+      #get next jacobian
+      jach=np.zeros((6,self.m.nv))
+      mujoco.mj_jacBody(self.m, self.d, jach[:3], jach[3:], id)
+      Jeh=jach[:,-10:] #CHANGES IF DIFFERENT BODIES ADDEDs
+
+      #finite differences
+      Je_dot=(Jeh-Je)/h
+
+      #reset q back to beginning
+      self.d.qpos=q_init
+      #update internal model (kinematics etc) with new vals
+      mujoco.mj_kinematics(self.m,self.d)
+      mujoco.mj_comPos(self.m,self.d)
+    
+      return Je,Je_dot
+
+
+  
   def control_loop(self, debug=False):
     '''
     This function sets the torque values u based on all appended main and secondary task controllers.
     For each of the controller tasks, it is expected that it has the function get_u, which returns the control signal.
     '''
+
+    T_ref=self.robot.fkine(self.getJointAngles())
+    q_ref=UnitQuaternion(T_ref)
+    T_ref=np.array(T_ref)
+    self.xref[:3]=T_ref[:3,3]
+    self.xref[3:]=q_ref.vec
+
+    time.sleep(self.dt)
+    time_elapsed_list = []
+
     while True:
-      time.sleep(self.dt)
+
+      start_time = time.time()
+
       if self.control_enabled:
 
 
@@ -293,7 +365,21 @@ class simulation:
 
         self.setJointTorques(u)
 
-  
+
+
+      time_elapsed = time.time() - start_time
+      sleep_adjust_time = max(0, self.dt - time_elapsed) # Adjusted for time the control loop takes
+      time.sleep(sleep_adjust_time)
+
+      
+      
+      time_elapsed = time.time() - start_time
+      time_elapsed_list.append(time_elapsed)
+
+      if len(time_elapsed_list) % 1000 > 0:
+        print(f"Average time per 1000 steps: {np.mean(np.asarray(time_elapsed_list))}  --- adjusted sleep time {sleep_adjust_time}")
+
+      
 
 
   def data_log_loop(self):
@@ -326,7 +412,11 @@ class simulation:
     # get tool orientation quaternion and analytical jacobian
 
     T_ee=np.array(self.getObjFrame(self.tool_name))
-    self.ee_position_data.append(T_ee)
+    x_ee=np.zeros(7)
+    x_ee[:3]=T_ee[:3,3]
+    x_ee[3:]=UnitQuaternion(sm.SE3(T_ee)).vec
+    self.ee_position_data.append(x_ee)
+
 
 
   def log_desired_position(self):
@@ -335,7 +425,8 @@ class simulation:
     given as sim.Tref
     '''
     # get tool orientation quaternion and analytical jacobian
-    self.ee_desired_data.append(self.Tref)
+
+    self.ee_desired_data.append(self.xref)
 
 
 
@@ -377,7 +468,8 @@ class simulation:
 
 
   def getNullProjMat(self, q): # dynamic projection matrix N, such that tau = tau_main + N@tau_second
-    Je = self.robot.jacob0(q)
+    #Je = self.robot.jacob0(q)
+    Je, JE_dot = self.getGeometricJacs()
     Je_inv = np.linalg.pinv(Je)
     M = self.robot.inertia(q)
 
@@ -423,7 +515,7 @@ class simulation:
     dist=np.linalg.norm(self.getObjState(name2)-self.getObjState(name1))
     return dist
   
-  def getAnalyticalJacobian(self):
+  def getAnalyticalJacobian(self,Je):
 
     #analytical jac transform for zyz euler angles, petercorke equivalent
     #T_ee=sim.robot.fkine(sim.q0)
@@ -439,29 +531,54 @@ class simulation:
     #TAinv[3:,3:]=Einv
     
     #JA=TAinv@sim.robot.jacob0(sim.q0)
+
     #get ee frame orientation as quaternion
     obj_q = self.d.body(self.tool_name).xquat
-    q_ee=UnitQuaternion(obj_q).vec
+    q_ee=UnitQuaternion(obj_q).vec #s,v1,v2,v3
 
     #analytical jac transform
-    xi0=q_ee[0]; xi1=q_ee[1];xi2=q_ee[2];xi3=q_ee[3]
+    xi0=q_ee[0]; xi1=q_ee[1];xi2=q_ee[2];xi3=q_ee[3] #xi0 = s, ...
 
     H=np.array([[-xi1,xi0,-xi3,xi2],
                 [-xi2,xi3,xi0,-xi1],
                 [-xi3,-xi2,xi1,xi0]])
     
+    
     TA_inv=np.zeros((7,6)) #maybe we have to use np.inv here 
     TA_inv[3:,3:]=0.5*H.T
     TA_inv[:3,:3]=np.eye(3)
 
+
+    
     #get ee jacobian in world frame (error is defined in world frame)
-    Je = self.robot.jacob0(self.getJointAngles())
-    Jedot=self.robot.jacob0_dot(self.getJointAngles(),self.getJointVelocities())
+    q=self.getJointAngles()
+    dq=self.getJointVelocities()
+
+    Jedot=self.robot.jacob0_dot(q,dq)
     #transform to analytical
     Ja = TA_inv@Je
-    Jadot = TA_inv@Jedot
+
+    #time derivative - get ee velocity as quat
+    dx=Ja@dq
+
+    #analytical jac transform
+    xi0=dx[3]; xi1=dx[4];xi2=dx[5];xi3=dx[6] #xi0 = s, ...
+
+    Hd=np.array([[-xi1,xi0,-xi3,xi2],
+                [-xi2,xi3,xi0,-xi1],
+                [-xi3,-xi2,xi1,xi0]])
+    
+    
+    TA_d_inv=np.zeros((7,6)) #maybe we have to use np.inv here 
+    TA_d_inv[3:,3:]=0.5*Hd.T
+    TA_d_inv[:3,:3]=np.eye(3)
+
+
+    Jadot = TA_inv@Jedot+TA_d_inv@Je #product rule!
     return Ja,q_ee, Jadot
   
+
+
   def get_trans_position(self, T_ee):
     '''
     This function is for logging the robot positions for both the end effector and the null space controller.
