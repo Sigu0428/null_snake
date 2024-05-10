@@ -100,7 +100,7 @@ class OP_Space_controller:
         dxref=sim.dxref
         ddxref=sim.ddxref
         sim.refmutex=1
-        q = np.array(sim.getJointAngles())
+
         dq = np.array(sim.getJointVelocities())
 
         # get tool orientation quaternion and analytical jacobian
@@ -137,8 +137,7 @@ class OP_Space_controller:
         x_desired_ddot=ddxref #desired acceleration
 
         #control signal
-        q=sim.getJointAngles()
-        
+
         #gq= self.robot.gravload(q)
         B = sim.getM()
         #C = self.robot.coriolis(q,dq)
