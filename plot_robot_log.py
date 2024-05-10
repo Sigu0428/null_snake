@@ -25,8 +25,8 @@ class robot_plot:
 
         for i in range(len(data)):
             
-            t=tr2rt(np.array(data[i]))
-            translational_pos.append(t[1])
+            
+            translational_pos.append(data[i][:3])
         
         return translational_pos
     
@@ -40,9 +40,9 @@ class robot_plot:
 
         for i in range(len(data)):
 
-            R=tr2rt(np.array(data[i]))
+            R=q2r(data[i][3:])
 
-            rot=r2x(R[0])
+            rot=r2x(R)
             orientational_pos.append(rot)
         
         return orientational_pos

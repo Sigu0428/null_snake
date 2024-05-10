@@ -18,7 +18,23 @@ from numpy.linalg import norm, pinv, inv, det
 import robot_matrices as rm
 from mujoco import _functions
 from ctypes import c_int, addressof
+class PrintArray:
 
+    def __init__(self, **kwargs):
+        self._kwargs = kwargs
+
+    def __repr__(self):
+        rpr = ('PrintArray(' +
+               ', '.join([f'{name}={value}' for name, value in self._kwargs.items()]) +
+               ')')
+        return rpr
+
+    def __array_ufunc__(self, ufunc, method, *inputs, **kwargs):
+        if ufunc != np.floor_divide:
+            return NotImplemented
+        a = inputs[0]
+        with np.printoptions(**self._kwargs):
+            print(a)
 class simulation:
 
   def __init__(self):
@@ -62,7 +78,7 @@ class simulation:
     i7 = np.array([[0.0, 0., 0.],    [0., 0.0, 0.],   [0., 0., 0.00000001]])
     i8 = np.array([[0.0, 0.0, 0.0],    [0.0, 0.0, 0.0],   [0.0, 0.0, 0.00000001]])
     i9 = np.array([[0.0, 0.0, 0.0],    [0.0, 0.0, 0.0],   [0.0, 0.0, 0.00000001]])
-    i10 = np.array([[0.0, 0.0, 0.0],    [0.0, 0.0, 0.0],   [0.0, 0.0, 0.1]])
+    i10 = np.array([[0.0, 0.0, 0.0],    [0.0, 0.0, 0.0],   [0.0, 0.0, 0.00000001]])
 
     m1 = 3.761
     m2 = 8.058
@@ -107,14 +123,17 @@ class simulation:
     self.qref=self.q0
     self.dqref=self.q00
     self.tool_name="ee_link2"
-    self.xref=np.zeros(6)
-    self.Tref=self.robot.fkine(self.qref)
-    self.T0=self.robot.fkine(self.q0)
+    self.xref=np.zeros(7)#xyz wv1v2v3
+    self.dxref=np.zeros(7)#xyz wv1v2v3 
+    self.ddxref=np.zeros(7) #xyz wv1v2v3 
+
     self.stepPeriod=self.dt
     self.obstacle="blockL01"
     self.obstacles = ['blockL01', 'blockL02']
     self.enable_avoidance=0
     self.log_u = []
+    self.Mpty=np.zeros((self.m.nv, self.m.nv))
+ 
 
     # logging of data:
     self.log_data_enabled = 1
@@ -221,9 +240,16 @@ class simulation:
       self.sendPositions = True
   
   def control_loop(self, debug=False):
-
+    T_ref=self.robot.fkine(self.getJointAngles())
+    q_ref=UnitQuaternion(T_ref)
+    T_ref=np.array(T_ref)
+    self.xref[:3]=T_ref[:3,3]
+    self.xref[3:]=q_ref.vec
+    last_time=time.time()
     while True:
+      
       time.sleep(self.dt)
+
       if self.control_enabled:
         #CONTROLLER GOES HERE!
         u = np.zeros((self.n))
@@ -233,6 +259,8 @@ class simulation:
         #u += self.SDDControl()
         # u_null = self.artificial_repulsion_field_controller(self.getJointAngles())
         self.setJointTorques(u)
+      #print(time.time()-last_time)
+      last_time=time.time()
 
   def data_log_loop(self):
     time_start = time.time()
@@ -249,8 +277,10 @@ class simulation:
         self.save_data()
         time_start = time.time()
 
-  def getObjVel(self, name):
-    return self.d.body(name).cvel
+
+  def getM(self):
+    L = mujoco.mj_fullM(self.m,self.Mpty , self.d.qM)
+    return np.copy(self.Mpty[6:,6:])
 
   def SDDControl(self):
     q = self.getJointAngles()
@@ -450,6 +480,44 @@ class simulation:
     
     return N
 
+  def getGeometricJacs(self):
+
+
+    h=1e-10
+    #get geometric jacobian from mujoco
+    jac=np.zeros((6,self.m.nv))
+    id=self.m.body("ee_link2").id
+    mujoco.mj_jacBody(self.m, self.d, jac[:3], jac[3:], id)
+    Je=jac[:,6:] #CHANGES IF DIFFERENT BODIES ADDED
+   
+    #integrate joint angles for small timestep h
+    q=self.d.qpos
+    dq=self.d.qvel
+    q_init=q
+    mujoco.mj_integratePos(self.m, q, dq, h)
+    
+    #update qpos with small step
+    self.d.qpos=q
+
+    #update internal model (kinematics etc) with new vals
+    mujoco.mj_kinematics(self.m,self.d)
+    mujoco.mj_comPos(self.m,self.d)
+
+    #get next jacobian
+    jach=np.zeros((6,self.m.nv))
+    mujoco.mj_jacBody(self.m, self.d, jach[:3], jach[3:], id)
+    Jeh=jach[:,6:] #CHANGES IF DIFFERENT BODIES ADDEDs
+
+    #finite differences
+    Je_dot=(Jeh-Je)/h
+
+    #reset q back to beginning
+    self.d.qpos=q_init
+    #update internal model (kinematics etc) with new vals
+    mujoco.mj_kinematics(self.m,self.d)
+    mujoco.mj_comPos(self.m,self.d)
+  
+    return Je,Je_dot
 
   def GravCompensationControlLoop(self):
     #control signal
@@ -513,13 +581,72 @@ class simulation:
     return u
   
   def opSpaceInverseDynControlLoop(self):
+    lambdamping=1.1
+    dim_analytical=7
+    Kp=np.eye(dim_analytical)
+    Kp[:3,:3]=np.eye(int(np.floor(dim_analytical/2)))*3000 #translational gain
+    Kp[3:,3:]=np.eye(int(np.ceil(dim_analytical/2)))*3000#orientational gain
+
+    Kd=np.eye(dim_analytical)*50 #velocity gain
+
+    # get tool orientation quaternion and analytical jacobian
+
+    T_ee=np.array(self.getObjFrame(self.tool_name))
+
+    Je,Je_dot=self.getGeometricJacs()
+
+    # xtilde
+    x_tilde=np.zeros(dim_analytical)
+    # relative translation
+
+    x_tilde[:3]=self.xref[:3]-T_ee[:3,3] #translational error
+    
+    # relative orientation by quaternions:
+    JA,q_ee,JAdot=self.getAnalyticalJacobian(Je)
+    q_ref=self.xref[3:]
+    
+    x_tilde[3:]= q_ref-q_ee
+
+    # velocity error 
+
+    x_tilde_dot=np.zeros(dim_analytical) 
+    dq = np.array(self.getJointVelocities())
+    
+    x_dot= JA@dq #dx=JA*dq
+    
+    x_tilde_dot= self.dxref-x_dot
+
+    x_desired_ddot=self.ddxref #desired acceleration
+
+    #control signal
+    q=self.getJointAngles()
+    
+    #gq= self.robot.gravload(q)
+    B = self.getM()
+    #C = self.robot.coriolis(q,dq)
+    n=self.getBiasForces()
+    #print((x_desired_ddot+Kd@x_tilde_dot+Kp@x_tilde-JAdot@dq))
+ 
+    #clamp pseudoinverse if manip low
+    if np.sqrt(np.linalg.det(JA@JA.T)) >= 1e-2:
+        JA_inv = np.linalg.inv(JA)
+    else:
+        JA_inv = np.linalg.pinv(JA, rcond=1e-2)
+    y = JA_inv@(x_desired_ddot+Kd@x_tilde_dot+Kp@x_tilde-JAdot@dq)
+
+    u = B@y + n
+
+ 
+    return u
+  
+  def opSpaceInverseDynControlLooptest(self):
 
     dim_analytical=7
     Kp=np.eye(dim_analytical)
-    Kp[:3,:3]=np.eye(int(np.floor(dim_analytical/2)))*160 #translational gain
-    Kp[3:,3:]=np.eye(int(np.ceil(dim_analytical/2)))*100#orientational gain
+    Kp[:3,:3]=np.eye(int(np.floor(dim_analytical/2)))*60 #translational gain
+    Kp[3:,3:]=np.eye(int(np.ceil(dim_analytical/2)))*20#orientational gain
 
-    Kd=np.eye(dim_analytical)*60
+    Kd=np.eye(dim_analytical)*200
 
     # get tool orientation quaternion and analytical jacobian
 
@@ -559,17 +686,17 @@ class simulation:
     dq = np.array(self.getJointVelocities())
     
     gq= self.robot.gravload(q)
-    B = self.robot.inertia(q)
-    C = self.robot.coriolis(q,dq)
+    B = self.getM()
+    C = self.robot.coriolis(q,self.q0)
     #print((x_desired_ddot+Kd@x_tilde_dot+Kp@x_tilde-JAdot@dq))
     y = np.linalg.pinv(JA)@(x_desired_ddot+Kd@x_tilde_dot+Kp@x_tilde-JAdot@dq)
     #np.set_printoptions(precision=5,suppress=True)
   
-    u = gq+B@y + C@dq
- 
+    u = gq+C@(self.q0)#+B@y + C@dq
+    print(np.linalg.norm(C@(self.q0)))
     #print((np.linalg.norm(x_tilde[:3]),np.linalg.norm(x_tilde[3:]))) 
     return u
-
+  
   def opSpaceInverseDynZYZControlLoop(self):
 
     dim_analytical=6
@@ -619,7 +746,11 @@ class simulation:
     print((np.linalg.norm(x_tilde[:3]),np.linalg.norm(x_tilde[3:]))) 
     return u
   
-
+  def getBiasForces(self):
+    qf=[]
+    for i in range(0, self.n):
+      qf.append(float(self.d.joint(f"joint{i+1}").qfrc_bias)) 
+    return qf
 
   def getJointAngles(self):
     ## State of the simulater robot 
@@ -652,12 +783,18 @@ class simulation:
     T[:3,3]=obj_t
     return sm.SE3(T)
   
+  def getObjDerivs(self, name):  
+    obj_t = self.d.body(name).xvel
+    obj_q = self.d.body(name).xquat
+    qvel=UnitQuaternion(obj_q).vec
+
+    return 
   def getObjDistance(self, name1,name2):
     ## State of the simulater robot    
     dist=np.linalg.norm(self.getObjState(name2)-self.getObjState(name1))
     return dist
   
-  def getAnalyticalJacobian(self):
+  def getAnalyticalJacobian(self,Je):
 
     #analytical jac transform for zyz euler angles, petercorke equivalent
     #T_ee=sim.robot.fkine(sim.q0)
@@ -673,6 +810,7 @@ class simulation:
     #TAinv[3:,3:]=Einv
     
     #JA=TAinv@sim.robot.jacob0(sim.q0)
+
     #get ee frame orientation as quaternion
     obj_q = self.d.body(self.tool_name).xquat
     q_ee=UnitQuaternion(obj_q).vec #s,v1,v2,v3
@@ -684,16 +822,37 @@ class simulation:
                 [-xi2,xi3,xi0,-xi1],
                 [-xi3,-xi2,xi1,xi0]])
     
+    
     TA_inv=np.zeros((7,6)) #maybe we have to use np.inv here 
     TA_inv[3:,3:]=0.5*H.T
     TA_inv[:3,:3]=np.eye(3)
 
+
+    
     #get ee jacobian in world frame (error is defined in world frame)
-    Je = self.robot.jacob0(self.getJointAngles())
-    Jedot=self.robot.jacob0_dot(self.getJointAngles(),self.getJointVelocities())
+    q=self.getJointAngles()
+    dq=self.getJointVelocities()
+
+    Jedot=self.robot.jacob0_dot(q,dq)
     #transform to analytical
     Ja = TA_inv@Je
-    Jadot = TA_inv@Jedot
+
+    #time derivative - get ee velocity as quat
+    dx=Ja@dq
+    #analytical jac transform
+    xi0=dx[3]; xi1=dx[4];xi2=dx[5];xi3=dx[6] #xi0 = s, ...
+
+    Hd=np.array([[-xi1,xi0,-xi3,xi2],
+                [-xi2,xi3,xi0,-xi1],
+                [-xi3,-xi2,xi1,xi0]])
+    
+    
+    TA_d_inv=np.zeros((7,6)) #maybe we have to use np.inv here 
+    TA_d_inv[3:,3:]=0.5*Hd.T
+    TA_d_inv[:3,:3]=np.eye(3)
+
+
+    Jadot = TA_inv@Jedot+TA_d_inv@Je #product rule!
     return Ja,q_ee, Jadot
   
   def log_robot_positions(self):
@@ -706,8 +865,10 @@ class simulation:
     # get tool orientation quaternion and analytical jacobian
 
     T_ee=np.array(self.getObjFrame(self.tool_name))
-
-    self.ee_position_data.append(T_ee)
+    x_ee=np.zeros(7)
+    x_ee[:3]=T_ee[:3,3]
+    x_ee[3:]=UnitQuaternion(sm.SE3(T_ee)).vec
+    self.ee_position_data.append(x_ee)
 
 
 
@@ -719,7 +880,7 @@ class simulation:
     '''
     # get tool orientation quaternion and analytical jacobian
 
-    self.ee_desired_data.append(self.Tref)
+    self.ee_desired_data.append(self.xref)
 
 
   def start(self):
@@ -739,8 +900,6 @@ class simulation:
       print("Inertia matrix: ",  np.array_str(sim.robot.inertia(sim.getJointAngles()).T, precision=3))
       print("\n"*3)
 
-    M=np.zeros((sim.m.nv, sim.m.nv))
-    L = mujoco.mj_fullM(sim.m,M , sim.d.qM)
 
 
 
@@ -755,13 +914,13 @@ if __name__ == "__main__":
   #get ee frame orientation as quaternion
 
   #pass trajectory to controller
- 
-  
+
+
 
   q_goal = [np.pi/2 , -np.pi/2.4, np.pi/2.4, -np.pi/2.2, np.pi,-np.pi/1.7,np.pi/1.7 , np.pi/2, -np.pi/2,0] 
   q_viapoint = [-np.pi/4, -np.pi/2.4, np.pi/2.4, -np.pi/2.2, np.pi,-np.pi/1.7,np.pi/1.7 , np.pi/2, -np.pi/2,0] 
 
-  steps=[500,100,300]
+  steps=[200,60,100]
   T=[5,3,6,3,3]
   #viapoints=[sim.robot.fkine(sim.q0)*sm.SE3.RPY(0,0,np.pi/2)] #zyx rot order
   viapoints=[sim.robot.fkine(q_goal)]
@@ -770,13 +929,27 @@ if __name__ == "__main__":
   time.sleep(3)
 
   for j in range(len(viapoints)):
-    Trj=rtb.ctraj(sim.robot.fkine(sim.getJointAngles()),viapoints[j],steps[j])
-    print(int(T[j]/sim.dt))
-    for i in range(len(Trj)):
-      sim.Tref=Trj[i]
-      if i>0:
-        sim.T0=Trj[i-1] # for velocity
-      sim.stepPeriod=T[j]/steps[j]
+    if j==0:
+      T_start=sim.robot.fkine(sim.getJointAngles())
+    else:
+      T_start=viapoints[j-1]
+    Trj=rtb.ctraj(T_start,viapoints[j],steps[j]) #trapezoidal velocity profile
+    npTrj=np.zeros((7,len(Trj)))
+    #get orientation and translation
+    for t in range(len(Trj)):
+      Tr=np.array(Trj[t])
+      npTrj[:3,t]=Tr[:3,3]
+      npTrj[3:,t]=UnitQuaternion(sm.SE3(Tr)).vec
+    #xyz quat velocity and acceleration from gradient MAYBE DOES NOT WORK FOR QUATS?
+    Tvel=np.gradient(npTrj,T[j]/steps[j],axis=1) #time to specify spacing
+    Tacc=np.gradient(Tvel,T[j]/steps[j],axis=1)
+    #print(Tvel[:,:5])
+    for i in range(steps[j]):
+
+      sim.xref=npTrj[:,i]
+      sim.dxref=Tvel[:,i]
+      sim.ddxref=Tacc[:,i]
+      #print(sim.xref[:3])
       time.sleep(T[j]/steps[j])
     time.sleep(2)
   while True:
