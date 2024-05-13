@@ -107,7 +107,7 @@ class OP_Space_controller:
 
         T_ee=np.array(sim.getObjFrame(sim.tool_name))
 
-        Je,Je_dot=sim.getGeometricJacs()
+        Je,Je_dot,JA,JA_dot=sim.getAllJacs()
 
         #print(sim.robot.jacob0_dot(q,dq))
         #print("....................")
@@ -120,7 +120,9 @@ class OP_Space_controller:
         x_tilde[:3]=xref[:3]-T_ee[:3,3] #translational error
         
         # relative orientation by quaternions:
-        JA,q_ee,JAdot=sim.getAnalyticalJacobian(Je,Je_dot)
+        #JA,q_ee,JAdot=sim.getAnalyticalJacobian(Je,Je_dot)
+        obj_q = sim.d.body(sim.tool_name).xquat
+        q_ee=UnitQuaternion(obj_q).vec #s,v1,v2,v3
         q_ref=xref[3:]
         
         x_tilde[3:]= q_ref-q_ee
@@ -150,7 +152,7 @@ class OP_Space_controller:
         #else:
         #    JA_inv = np.linalg.pinv(JA, rcond=1e-2)
         JA_inv=np.linalg.pinv(JA)
-        y = JA_inv@(x_desired_ddot+Kd@x_tilde_dot+Kp@x_tilde-JAdot@dq)
+        y = JA_inv@(x_desired_ddot+Kd@x_tilde_dot+Kp@x_tilde-JA_dot@dq)
 
         u = B@y + n
 
