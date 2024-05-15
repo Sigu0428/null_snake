@@ -64,9 +64,9 @@ class simulation:
     self.m = mujoco.MjModel.from_xml_path('./Ur5_robot/Robot_scene.xml')
     self.d = mujoco.MjData(self.m)
     self.jointTorques = [0 ,0,0,0,0,0,0,0,0,0] #simulation reads these and sends to motors at every time step
-    self.dt = 1/40 #control loop update rate
+    self.dt = 1/100 #control loop update rate
     self.robot_link_names = ["shoulder_link", "upper_arm_link", "forearm_link", "wrist_1_link", "ee_link1", "shoulder_link2", "upper_arm_link2", "forearm_link2", "wrist_1_link2", "wrist_2_link2", "wrist_3_link2", "ee_link2"]
-    self.q0=  [0 , -np.pi/2.4, np.pi/2.4, -np.pi/2.2, np.pi,-np.pi/1.7,np.pi/1.7 , np.pi/2, -np.pi/2,0]  # 0, -3*np.pi/4, np.pi/3, np.pi, 0, 0, np.pi/3 , 0, 0,0] #home pose
+    self.q0=  [0 , -np.pi/2.4, np.pi/2.4, -np.pi/2.2, np.pi/2,-np.pi/1.7,np.pi/1.7 , np.pi/2, -np.pi/2,0]  # 0, -3*np.pi/4, np.pi/3, np.pi, 0, 0, np.pi/3 , 0, 0,0] #home pose
     self.dq0= [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
 
 
@@ -185,10 +185,11 @@ class simulation:
 
 
   def getBiasForces(self):
-    qf=[]
-    for i in range(0, self.n):
-      qf.append(float(self.d.joint(f"joint{i+1}").qfrc_bias)) 
-    return qf
+    with self.jointLock:
+      qf=[]
+      for i in range(0, self.n):
+        qf.append(float(self.d.joint(f"joint{i+1}").qfrc_bias)) 
+      return qf
 
 
   def launch_mujoco(self):
@@ -233,17 +234,14 @@ class simulation:
     '''
     This function launches mujoco together with the control loop and the logging of data
     '''
-
+    #initialize joint values to home before running sim
+    for i in range(0, self.n):
+        self.d.joint(f"joint{i+1}").qpos=self.q0[i]
 
     with mujoco.viewer.launch_passive(self.m, self.d) as viewer:
       # Close the viewer automatically after 30 wall-seconds.
 
-      #initialize joint values to home before running sim
-      for i in range(0, self.n):
-        if i==8:
-          self.d.joint(f"joint{i+1}").qpos=self.q0[i]#+1.2 uncomment this to add a small offset to verify  rotation works
-        else:
-          self.d.joint(f"joint{i+1}").qpos=self.q0[i]
+
 
 
       control_thrd = Thread(target=self.control_loop,daemon=True) #control loop for commanding torques
@@ -289,51 +287,30 @@ class simulation:
 
 
   def getM(self):
+    #mujoco.mj_kinematics(self.m,self.d)  #initial jac depends on this !
+   # mujoco.mj_comPos(self.m,self.d)
+
     L = mujoco.mj_fullM(self.m,self.Mpty , self.d.qM)
     return np.copy(self.Mpty[-10:,-10:]) #CHANGES IF DIFFERENT BODIES ADDED
 
-  def getGeometricJacs(self):
-
-      h=1e-6
+  def getGeometricJac(self):
+      mujoco.mj_kinematics(self.m,self.d)
+      mujoco.mj_comPos(self.m,self.d)
       #get geometric jacobian from mujoco
       jac=np.zeros((6,self.m.nv))
       id=self.m.body("ee_link2").id
       mujoco.mj_jacBody(self.m, self.d, jac[:3], jac[3:], id)
       Je=jac[:,-10:] #CHANGES IF DIFFERENT BODIES ADDED
 
-
-      #integrate joint angles for small timestep h
-      q=np.copy(self.d.qpos)
-      dq=np.copy(self.d.qvel)
-      q_init=np.copy(q)
-      mujoco.mj_integratePos(self.m, q, dq, h)
-      
-      #update qpos with small step
-      self.d.qpos=q
-
-      #update internal model (kinematics etc) with new vals
-      mujoco.mj_kinematics(self.m,self.d)
-      mujoco.mj_comPos(self.m,self.d)
-
-      #get next jacobian
-      jach=np.zeros((6,self.m.nv))
-      mujoco.mj_jacBody(self.m, self.d, jach[:3], jach[3:], id)
-      Jeh=jach[:,-10:] #CHANGES IF DIFFERENT BODIES ADDEDs
-
-      #finite differences
-      Je_dot=(Jeh-Je)/0.01 #why does this shit work
-
-      #reset q back to beginning
-      self.d.qpos=q_init
-      #update internal model (kinematics etc) with new vals
-      mujoco.mj_kinematics(self.m,self.d)
-      mujoco.mj_comPos(self.m,self.d)
-    
-      return Je,Je_dot
+      return Je
 
   def getAllJacs(self):
+     
+      #update init
+      mujoco.mj_kinematics(self.m,self.d)  #initial jac depends on this !
+      mujoco.mj_comPos(self.m,self.d)
 
-      h=1e-8
+      h=1e-2 #
       #get geometric jacobian from mujoco
       jac=np.zeros((6,self.m.nv))
       id=self.m.body("ee_link2").id
@@ -361,13 +338,14 @@ class simulation:
       dq=np.copy(self.d.qvel)
       q_init=np.copy(q)
       mujoco.mj_integratePos(self.m, q, dq, h)
-      
+
       #update qpos with small step
       self.d.qpos=q
 
       #update internal model (kinematics etc) with new vals
       mujoco.mj_kinematics(self.m,self.d)
       mujoco.mj_comPos(self.m,self.d)
+
 
       #get next TA
       obj_q = self.d.body(self.tool_name).xquat
@@ -391,8 +369,9 @@ class simulation:
       Jeh=jach[:,-10:] #CHANGES IF DIFFERENT BODIES ADDEDs
 
       #finite differences
-      Je_dot=(Jeh-Je)/0.01 #why does this shit work
-      TA_inv_dot=(TA_inv_post-TA_inv_pre)/0.01
+      Je_dot=(Jeh-Je)/h 
+      TA_inv_dot=(TA_inv_post-TA_inv_pre)/h
+      
 
       #reset q back to beginning
       self.d.qpos=q_init
@@ -401,7 +380,9 @@ class simulation:
       mujoco.mj_comPos(self.m,self.d)
 
       JA=TA_inv_pre@Je
-      JA_dot = TA_inv_pre@Je_dot+TA_inv_dot@Je #product rule!
+      JA_dot= TA_inv_pre@Je_dot+TA_inv_dot@Je #product rule!
+      print(f"Jedot: {np.sum(Je_dot)}")
+      print(f"TAdot: {np.sum(TA_inv_dot)}")
       return Je,Je_dot,JA,JA_dot
 
 
@@ -411,7 +392,7 @@ class simulation:
     This function sets the torque values u based on all appended main and secondary task controllers.
     For each of the controller tasks, it is expected that it has the function get_u, which returns the control signal.
     '''
-
+    
     T_ref=self.robot.fkine(self.getJointAngles())
     q_ref=UnitQuaternion(T_ref)
     T_ref=np.array(T_ref)
@@ -437,7 +418,7 @@ class simulation:
         for controller in self.nullspace_controllers:
           u += self.getNullProjMat(self.getJointAngles())@controller.get_u(self)   
         '''
-
+       
         self.setJointTorques(u)
 
 
@@ -452,7 +433,8 @@ class simulation:
       time_elapsed_list.append(time_elapsed)
 
       if len(time_elapsed_list) % 1000 > 0:
-        print(f"Average time per 1000 steps: {np.mean(np.asarray(time_elapsed_list))}  --- adjusted sleep time {sleep_adjust_time}")
+        pass
+        #print(f"Average time per 1000 steps: {np.mean(np.asarray(time_elapsed_list))}  --- adjusted sleep time {sleep_adjust_time}")
 
       
 
@@ -544,31 +526,33 @@ class simulation:
 
   def getNullProjMat(self, q): # dynamic projection matrix N, such that tau = tau_main + N@tau_second
     #Je = self.robot.jacob0(q)
-    Je, JE_dot = self.getGeometricJacs()
+    Je = self.getGeometricJac()
     Je_inv = np.linalg.pinv(Je)
-    M = self.robot.inertia(q)
+    #M=self.getM()
 
-    N = (np.eye(self.n) - Je_inv@Je) # from book
+    N =(np.eye(self.n) - Je_inv@Je) # from book
 
     return N
 
 
   def getJointAngles(self):
     ## State of the simulater robot 
-    qState=[]    
-    for i in range(0, self.n):
-      qState.append(float(self.d.joint(f"joint{i+1}").qpos[0])) 
-      
+    with self.jointLock:
+      qState=[]    
+      for i in range(0, self.n):
+        qState.append(float(self.d.joint(f"joint{i+1}").qpos[0])) 
+
     return qState
   
 
   def getJointVelocities(self):
     ## State of the simulater robot 
-    qState=[]    
-    for i in range(0, self.n):
-      qState.append(float(self.d.joint(f"joint{i+1}").qvel[0])) 
-      
-    return qState
+    with self.jointLock:
+      qState=[]    
+      for i in range(0, self.n):
+        qState.append(float(self.d.joint(f"joint{i+1}").qvel[0])) 
+        
+      return qState
 
   
   def getObjState(self, name):

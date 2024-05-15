@@ -147,7 +147,7 @@
                                 <geom class="eef_collision" pos="0 0.08 0" quat="1 1 0 0" size="0.04 0.02"/>
                                 <!--joint 6 frame from DH -->
                                 <body name="ee_link2" pos="0 0.0996 0" quat="0.707107 -0.707107 0 0" > 
-                                  <inertial pos="0 0 -0.001159" mass="0.365"  diaginertia="1.66667e-08 1.66667e-08 1.66667e-08" />
+                                  <inertial pos="0 0 -0.001159" mass="0.365"  diaginertia="0.001 0.001 0.002" />
                                   <geom size="0.005 0.005 0.005" pos="-0.01 0 0" type="box" />
                                   <!--"toolframe" can be added here-->
 

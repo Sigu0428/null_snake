@@ -124,8 +124,8 @@ class OP_Space_controller:
         obj_q = sim.d.body(sim.tool_name).xquat
         q_ee=UnitQuaternion(obj_q).vec #s,v1,v2,v3
         q_ref=xref[3:]
-        
-        x_tilde[3:]= q_ref-q_ee
+        #according to book 
+        x_tilde[3:]=q_ref-q_ee
 
         # velocity error 
 
@@ -135,6 +135,7 @@ class OP_Space_controller:
         x_dot= JA@dq #dx=JA*dq
         
         x_tilde_dot= dxref-x_dot
+ 
 
         x_desired_ddot=ddxref #desired acceleration
 
@@ -152,10 +153,12 @@ class OP_Space_controller:
         #else:
         #    JA_inv = np.linalg.pinv(JA, rcond=1e-2)
         JA_inv=np.linalg.pinv(JA)
+        print(np.sum(JA_inv)/60)
+
         y = JA_inv@(x_desired_ddot+Kd@x_tilde_dot+Kp@x_tilde-JA_dot@dq)
 
         u = B@y + n
-
+        print(f"y: {np.sum(y)}, u: {np.sum(B)}, a: {np.sum(x_desired_ddot)}, v: {np.sum(Kd@x_tilde_dot)}, p: {np.sum(Kp@x_tilde)}, Jadot: {np.sum(-JA_dot@dq)} ")
         return u
     
 
@@ -228,7 +231,8 @@ class grav_compensation_controller:
                 sim: the simulator object
         '''
         #control signal
-        gq= sim.robot.gravload(sim.getJointAngles())
+        #gq= sim.robot.gravload(sim.getJointAngles())
+        gq=sim.getBiasForces()
         u=gq
         return u
 
@@ -295,6 +299,7 @@ class SDD_controller:
                 pli = sim.getObjState(sim.robot_link_names[i])
                 dir = ((o - pli)/np.linalg.norm(o - pli))
                 dist = sim.raycastAfterRobotGeometry(pli, dir)
+
                 if dist > 0:
                     gravs[i, :] = dir * sim.repulsion_force_func(dist, 20, 0.5) * self.k
                     gravs[i: 0:2] = 0
@@ -309,7 +314,9 @@ class SDD_controller:
                 gravs[i, :] = dir * sim.repulsion_force_func(dist, 5, 0.5) * self.k
                 gravs[i: 0:2] = 0
         u += rm.dynamicGrav(gravs, q)
+
         u = sim.getNullProjMat(q)@u
+
         return u
             
 
@@ -407,8 +414,9 @@ class ARCHIVED:
 
   def GravCompensationControlLoop(self):
     #control signal
-    gq= self.robot.gravload(self.getJointAngles())
-    u=gq
+    #gq= self.robot.gravload(self.getJointAngles())
+    
+    u=sim.getBiasForces()
     return u
 
 
