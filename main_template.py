@@ -25,7 +25,7 @@ class PrintArray:
             print(a)
 
 
-def follow_trajectory(sim, traj, T=10, steps=500):
+def follow_trajectory(sim, traj, T=20, steps=500):
     '''
     This function passes a trajectory to the simulator
     
@@ -36,9 +36,22 @@ def follow_trajectory(sim, traj, T=10, steps=500):
         steps: number of steps to follow trajectory
     '''
     
-    
-    for i in range(len(traj)):
-        sim.Tref=traj[i]
+    npTrj=np.zeros((7,len(traj)))
+
+    for t in range(len(Trj)):
+        Tr=np.array(Trj[t])
+        npTrj[:3,t]=Tr[:3,3]
+        npTrj[3:,t]=UnitQuaternion(sm.SE3(Tr)).vec
+        #xyz quat velocity and acceleration from gradient MAYBE DOES NOT WORK FOR QUATS?
+        Tvel=np.gradient(npTrj,T/steps,axis=1) #time to specify spacing
+        Tacc=np.gradient(Tvel,T/steps,axis=1)
+        #print(Tvel[:,:5])
+        for i in range(steps):
+            sim.xref=npTrj[:,i]
+            sim.dxref=Tvel[:,i]
+            sim.ddxref=Tacc[:,i]
+
+
         time.sleep(T/steps)
 
 
@@ -49,37 +62,65 @@ if __name__ == "__main__":
 
 
     # ----------------- Defining controllers for the simulator -----------------
-    OP_inverse_controller = OP_Space_inverse_controller(kp=20, kp_ori=20, kd=200)
-    OP_inverse_ZYZ_controller = OP_Space_inverse_ZYZ_controller(kp=10, kd=200)
-    g = grav_compensation_controller()
-    joint_space_PDG = Joint_space_PDG_controller(kp=150, kd=50)
-    SDD_control = SDD_controller(k=10)
+    OP_inverse_controller = OP_Space_controller(kd=50, kp_trans=2000,kp_ori=3000)
+    #OP_inverse_ZYZ_controller = OP_Space_inverse_ZYZ_controller(kp=10, kd=200)
+    #g = grav_compensation_controller()
+    #joint_space_PDG = Joint_space_PDG_controller(kp=150, kd=50)
+    SDD_control = SDD_controller(k=0.8)
     
 
 
 
     # ----------------- Adding controllers to the simulator -----------------
     # sim.controllers.append(OP_inverse_controller)
-    # sim.controllers.append(SDD_control)
-    sim.controllers.append(g)
+    sim.controllers.append(SDD_control)
+    sim.controllers.append(OP_inverse_controller)
     sim.start() 
 
 
 
     # ----------------- Trajectory Generation -----------------
-    steps = 100
+
+
     q_goal = [np.pi/2 , -np.pi/2.4, np.pi/2.4, -np.pi/2.2, np.pi,-np.pi/1.7,np.pi/1.7 , np.pi/2, -np.pi/2,0] 
-    Tgoal=sim.robot.fkine(q_goal)
+    q_viapoint = [-np.pi/4, -np.pi/2.4, np.pi/2.4, -np.pi/2.2, np.pi,-np.pi/1.7,np.pi/1.7 , np.pi/2, -np.pi/2,0] 
 
-    Trj=rtb.ctraj(sim.Tref,Tgoal,steps)
-    Trj_inv=rtb.ctraj(Tgoal,sim.Tref,steps)
+    steps=[200,200,100]
+    T=[5,5,6,3,3]
+    #viapoints=[sim.robot.fkine(sim.q0)*sm.SE3.RPY(0,0,np.pi/2)] #zyx rot order
+    viapoints=[sim.robot.fkine(q_goal)]
+    viapoints.append(sim.robot.fkine(q_viapoint))
 
-    follow_trajectory(sim, traj=Trj, steps=steps)
-    time.sleep(3)
-    follow_trajectory(sim, traj=Trj_inv, steps=steps)
-    time.sleep(3)
-    follow_trajectory(sim, traj=Trj, steps=steps)
-    time.sleep(3)
-    follow_trajectory(sim, traj=Trj_inv, steps=steps)
 
-    time.sleep(1000)
+    time.sleep(3)
+
+    for j in range(len(viapoints)):
+        if j==0:
+            T_start=sim.robot.fkine(sim.getJointAngles())
+        else:
+            T_start=viapoints[j-1]
+        Trj=rtb.ctraj(T_start,viapoints[j],steps[j]) #trapezoidal velocity profile
+        npTrj=np.zeros((7,len(Trj)))
+        #get orientation and translation
+        for t in range(len(Trj)):
+            Tr=np.array(Trj[t])
+            npTrj[:3,t]=Tr[:3,3]
+            npTrj[3:,t]=UnitQuaternion(sm.SE3(Tr)).vec
+        #xyz quat velocity and acceleration from gradient
+        Tvel=np.gradient(npTrj,T[j]/steps[j],axis=1) #time to specify spacing
+        Tacc=np.gradient(Tvel,T[j]/steps[j],axis=1)
+
+        for i in range(steps[j]):
+            while not sim.refmutex: pass
+            sim.refmutex=0
+            sim.xref=npTrj[:,i]
+            sim.dxref=Tvel[:,i]
+            sim.ddxref=Tacc[:,i]
+            sim.refmutex=1
+            #print(sim.xref[:3])
+            time.sleep(T[j]/steps[j])
+            print(j)
+        time.sleep(2)
+
+
+        time.sleep(1000)
