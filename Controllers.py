@@ -11,6 +11,25 @@ from numpy.linalg import norm, pinv, inv, det
 This python file handles all the controllers which will be used by the simulator.
 '''
 
+class PrintArray:
+
+    def __init__(self, **kwargs):
+        self._kwargs = kwargs
+
+    def __repr__(self):
+        rpr = ('PrintArray(' +
+               ', '.join([f'{name}={value}' for name, value in self._kwargs.items()]) +
+               ')')
+        return rpr
+
+    def __array_ufunc__(self, ufunc, method, *inputs, **kwargs):
+        if ufunc != np.floor_divide:
+            return NotImplemented
+        a = inputs[0]
+        with np.printoptions(**self._kwargs):
+            print(a)
+
+
 
 class OP_Space_inverse_controller:
     '''
@@ -107,7 +126,7 @@ class OP_Space_controller:
 
         T_ee=np.array(sim.getObjFrame(sim.tool_name))
 
-        Je,Je_dot=sim.getGeometricJacs()
+        Je,Je_dot,JA,JA_dot=sim.getAllJacs()
 
         #print(sim.robot.jacob0_dot(q,dq))
         #print("....................")
@@ -120,7 +139,9 @@ class OP_Space_controller:
         x_tilde[:3]=xref[:3]-T_ee[:3,3] #translational error
         
         # relative orientation by quaternions:
-        JA,q_ee,JAdot=sim.getAnalyticalJacobian(Je,Je_dot)
+        #JA,q_ee,JAdot=sim.getAnalyticalJacobian(Je,Je_dot)
+        obj_q = sim.d.body(sim.tool_name).xquat
+        q_ee=UnitQuaternion(obj_q).vec #s,v1,v2,v3
         q_ref=xref[3:]
         
         x_tilde[3:]= q_ref-q_ee
@@ -150,7 +171,7 @@ class OP_Space_controller:
         #else:
         #    JA_inv = np.linalg.pinv(JA, rcond=1e-2)
         JA_inv=np.linalg.pinv(JA)
-        y = JA_inv@(x_desired_ddot+Kd@x_tilde_dot+Kp@x_tilde-JAdot@dq)
+        y = JA_inv@(x_desired_ddot+Kd@x_tilde_dot+Kp@x_tilde-JA_dot@dq)
 
         u = B@y + n
 
@@ -304,12 +325,120 @@ class SDD_controller:
             pli = sim.getObjState(sim.robot_link_names[i])
             dist = sim.raycast(pli, dir)
             if dist > 0:
-                gravs[i, :] = dir * sim.repulsion_force_func(dist, 5, 0.5) * self.k
+                gravs[i, :] = dir * sim.repulsion_force_func(dist, 1, 0.5) * self.k
                 gravs[i: 0:2] = 0
         u += rm.dynamicGrav(gravs, q)
         u = sim.getNullProjMat(q)@u
         return u
             
+
+
+class null_space_addmitance_controller:
+    '''
+    This class implements a null space addmitance controller
+    '''
+    def __init__(self, kp, mp):
+        self.kp = kp
+        self.mp = mp
+
+        self.Dp = 2*np.sqrt(mp * kp)*1
+
+        self.p = PrintArray()
+
+    def get_u(self, sim):
+        '''
+        This function sets u based on a null space addmitance controller
+        ARGS:
+            sim: the simulator object
+        '''
+        joints = 10
+        dt = sim.dt
+
+        mp = np.eye(joints)*self.mp
+        kp = np.eye(joints)*self.kp
+        dp = np.eye(joints)*self.Dp
+
+        wrenches = np.zeros((joints,6))
+        u = np.zeros((joints))
+
+        for ob in sim.obstacles:
+            ddpcd = np.zeros((joints, 3))
+            dpcd = np.zeros((joints, 3))
+            pcd = np.zeros((joints, 3))
+
+
+            ddocd = np.zeros((joints, 3))
+            docd = np.zeros((joints, 3))
+            ocd = np.zeros((joints, 3))
+
+
+            o = sim.getObjState(ob)
+
+            for i in range(sim.n):
+                pli = sim.getObjState(sim.robot_link_names[i])
+                dir = ((o - pli)/np.linalg.norm(o - pli))
+                dist = sim.raycastAfterRobotGeometry(pli, dir)
+
+                if dist < 3 and dist != -1:
+                    #ddpcd[i, :] = -dir * sim.repulsion_force_func(dist, 20, 0.5)
+                    ddpcd[i, :] = -dir * 20
+
+
+                    ddocd[i, :] = -dir * 10 # Torque is set randomly for now.
+
+
+
+            # Integration of ddpcd - Translation
+            for i in range(joints):
+                dpcd[i, :] = dpcd[i, :] + ddpcd[i, :]*dt
+                pcd[i, :] = pcd[i, :] + dpcd[i, :]*dt
+            
+                # Creating translational controller torques 
+                
+
+                # Integration of ddocd - Orientation # Interation of Euler, it is wrong, shuodl be quaternion
+                docd[i, :] = docd[i, :] + ddocd[i, :]*dt
+                ocd[i, :] = ocd[i, :] + docd[i, :]*dt
+
+
+            wrenches[:, 0:3] += mp@ddpcd + dp@dpcd + kp@pcd
+            wrenches[:, 3:6] += mp@ddocd + dp@docd + kp@ocd
+
+
+
+            print("\n"*3)
+            print("All jac.T@wrench[:, j]")
+
+
+
+            for j in range(joints):
+
+                jac = sim.getJacobian(id=j)
+                #jac = sim.robot.jacob0(sim.getJointAngles(), sim.robot.A(j, sim.getJointAngles()))
+                
+
+                wrench = wrenches.T
+                print("wrench: ", wrench)
+
+                all_torques = jac.T@wrench[:, j]
+
+                u += all_torques # Not if axis shape 1 or zero should be added, im quessing axis 0
+
+                print(jac.T@wrench[:, j])
+
+
+
+
+
+        print("u: ", u)
+        u = sim.getNullProjMat(sim.getJointAngles())@u
+
+
+        return u
+    
+
+
+
 
 
 # ARCHIVED controllers
