@@ -403,7 +403,7 @@ class simulation:
     if self.control_enabled:
 
 
-      u = [0]*self.n
+      u = np.zeros(len(self.q0))
       for controller in self.controllers:
         u += controller.get_u(self)
 
@@ -518,11 +518,12 @@ class simulation:
 
   def getNullProjMat(self, q): # dynamic projection matrix N, such that tau = tau_main + N@tau_second
     #Je = self.robot.jacob0(q)
-    Je, JE_dot = self.getGeometricJac()
+    Je = self.getGeometricJac()
     Je_inv = np.linalg.pinv(Je)
     M = self.robot.inertia(q)
 
     N = (np.eye(self.n) - Je_inv@Je) # from book
+
 
     return N
 
