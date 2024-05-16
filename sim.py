@@ -69,6 +69,7 @@ class simulation:
     self.q0=  [0 , -np.pi/2.4, np.pi/2.4, -np.pi/2.2, np.pi,-np.pi/1.7,np.pi/1.7 , np.pi/2, -np.pi/2,0]  # 0, -3*np.pi/4, np.pi/3, np.pi, 0, 0, np.pi/3 , 0, 0,0] #home pose
     self.dq0= [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
     self.mojo_internal_mutex = Lock()
+    self.refLock = Lock()
 
 
     # Peter corke robot model initialization
@@ -89,7 +90,7 @@ class simulation:
     self.dxref=np.zeros(7)#xyz wv1v2v3 
     self.ddxref=np.zeros(7) #xyz wv1v2v3 
     self.Mpty=np.zeros((self.m.nv, self.m.nv))
-
+    self.DLS_lambda=0.5
 
 
     # logging of data for plotting:
@@ -241,9 +242,7 @@ class simulation:
 
       #initialize joint values to home before running sim
       for i in range(0, self.n):
-        if i==8:
-          self.d.joint(f"joint{i+1}").qpos=self.q0[i]#+1.2 uncomment this to add a small offset to verify  rotation works
-        else:
+
           self.d.joint(f"joint{i+1}").qpos=self.q0[i]
 
 
@@ -398,8 +397,8 @@ class simulation:
       Jeh=jach[:,-10:] #CHANGES IF DIFFERENT BODIES ADDEDs
 
       #finite differences
-      Je_dot=(Jeh-Je)/0.01 #why does this shit work
-      TA_inv_dot=(TA_inv_post-TA_inv_pre)/0.01
+      Je_dot=(Jeh-Je)/h #why does this shit work
+      TA_inv_dot=(TA_inv_post-TA_inv_pre)/h
 
       #reset q back to beginning
       self.d.qpos=q_init
@@ -454,8 +453,8 @@ class simulation:
     time_elapsed = time.time() - start_time
     time_elapsed_list.append(time_elapsed)
 
-    if len(time_elapsed_list) % 1000 > 0:
-      print(f"Average time per 1000 steps: {np.mean(np.asarray(time_elapsed_list))}  --- adjusted sleep time {sleep_adjust_time}")
+    #if len(time_elapsed_list) % 1000 > 0:
+     # print(f"Average time per 1000 steps: {np.mean(np.asarray(time_elapsed_list))}  --- adjusted sleep time {sleep_adjust_time}")
 
       
 

@@ -94,13 +94,11 @@ class OP_Space_controller:
         Kd=np.eye(dim_analytical)*self.kd #velocity gain
 
         #get references
-        while not sim.refmutex: pass
-        sim.refmutex=0
-        xref=sim.xref
-        dxref=sim.dxref
-        ddxref=sim.ddxref
-        sim.refmutex=1
-
+        with sim.refLock:
+            xref=np.copy(sim.xref)
+            dxref=np.copy(sim.dxref)
+            ddxref=np.copy(sim.ddxref)
+    
         dq = np.array(sim.getJointVelocities())
 
         # get tool orientation quaternion and analytical jacobian
@@ -146,12 +144,8 @@ class OP_Space_controller:
         n=sim.getBiasForces()
         #print((x_desired_ddot+Kd@x_tilde_dot+Kp@x_tilde-JAdot@dq))
     
-        #clamp pseudoinverse if manip low
-        #if np.sqrt(np.linalg.det(JA@JA.T)) >= 1e-2:
-        #    JA_inv = np.linalg.pinv(JA)
-        #else:
-        #    JA_inv = np.linalg.pinv(JA, rcond=1e-2)
-        JA_inv=np.linalg.pinv(JA)
+
+        JA_inv=JA.T@np.linalg.inv(JA@JA.T+2*(sim.DLS_lambda**2)*np.eye(7)) #DLS inverse
         y = JA_inv@(x_desired_ddot+Kd@x_tilde_dot+Kp@x_tilde-JA_dot@dq)
 
         u = B@y + n
