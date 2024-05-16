@@ -297,6 +297,7 @@ class SDD_controller:
             for i in range(sim.n):
                 pli = sim.getObjState(sim.robot_link_names[i])
                 dir = ((o - pli)/np.linalg.norm(o - pli))
+                dir[2]=dir[2]*0.1
                 dist = sim.raycastAfterRobotGeometry(pli, dir)
 
                 if dist > 0:
@@ -310,7 +311,7 @@ class SDD_controller:
             pli = sim.getObjState(sim.robot_link_names[i])
             dist = sim.raycast(pli, dir)
             if dist > 0:
-                gravs[i, :] = dir * sim.repulsion_force_func(dist, 5, 0.5) * self.k
+                gravs[i, :] = dir * sim.repulsion_force_func(dist, 8, 0.5) * self.k
                 gravs[i: 0:2] = 0
         u += rm.dynamicGrav(gravs, q)
 

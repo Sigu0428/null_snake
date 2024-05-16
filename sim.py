@@ -67,6 +67,8 @@ class simulation:
     self.dt = 1/100 #control loop update rate
     self.robot_link_names = ["shoulder_link", "upper_arm_link", "forearm_link", "wrist_1_link", "ee_link1", "shoulder_link2", "upper_arm_link2", "forearm_link2", "wrist_1_link2", "wrist_2_link2", "wrist_3_link2", "ee_link2"]
     self.q0=  [0 , -np.pi/2.4, np.pi/2.4, -np.pi/2.2, np.pi,-np.pi/1.7,np.pi/1.7 , np.pi/2, -np.pi/2,0]  # 0, -3*np.pi/4, np.pi/3, np.pi, 0, 0, np.pi/3 , 0, 0,0] #home pose
+    self.q0 =[-0.011883392418129418, -1.0844171298435696, 1.2451685784223219, -1.5952286944897995, 3.050952397374942, -1.610676572774261, 1.9281875840731513, 1.2433285807817533, -1.5938364792424746, 0.08235558389557769]
+    self.q0=[0.042650097748631446, -1.019321672804651, 1.1403720614323332, -1.5830126892045358, 2.840604254882755, -1.5312483784292243, 2.2101639915616405, 0.9112199034426763, -1.6800597230529313, 0.29585489443714624]
     self.dq0= [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
 
 
@@ -310,7 +312,7 @@ class simulation:
       mujoco.mj_kinematics(self.m,self.d)  #initial jac depends on this !
       mujoco.mj_comPos(self.m,self.d)
 
-      h=1e-4 #
+      h=1e-2 #
       #get geometric jacobian from mujoco
       jac=np.zeros((6,self.m.nv))
       id=self.m.body("ee_link2").id
