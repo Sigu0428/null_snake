@@ -68,6 +68,7 @@ class simulation:
     self.robot_link_names = ["shoulder_link", "upper_arm_link", "forearm_link", "wrist_1_link", "ee_link1", "shoulder_link2", "upper_arm_link2", "forearm_link2", "wrist_1_link2", "wrist_2_link2", "wrist_3_link2", "ee_link2"]
     self.q0=  [0 , -np.pi/2.4, np.pi/2.4, -np.pi/2.2, np.pi,-np.pi/1.7,np.pi/1.7 , np.pi/2, -np.pi/2,0]  # 0, -3*np.pi/4, np.pi/3, np.pi, 0, 0, np.pi/3 , 0, 0,0] #home pose
     self.dq0= [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    self.mojo_internal_mutex = Lock()
 
 
     # Peter corke robot model initialization
@@ -268,8 +269,9 @@ class simulation:
     
         # mj_step can be replaced with code that also evaluates
         # a policy and applies a control signal before stepping the physics.
+        self.mojo_internal_mutex.acquire()
         mujoco.mj_step(self.m, self.d)
-
+        self.mojo_internal_mutex.release()
 
         viewer.sync()
 
@@ -293,7 +295,7 @@ class simulation:
     return np.copy(self.Mpty[-10:,-10:]) #CHANGES IF DIFFERENT BODIES ADDED
 
   def getGeometricJacs(self):
-
+      self.mojo_internal_mutex.acquire()
       h=1e-6
       #get geometric jacobian from mujoco
       jac=np.zeros((6,self.m.nv))
@@ -328,7 +330,7 @@ class simulation:
       #update internal model (kinematics etc) with new vals
       mujoco.mj_kinematics(self.m,self.d)
       mujoco.mj_comPos(self.m,self.d)
-    
+      self.mojo_internal_mutex.release()
       return Je,Je_dot
 
   def getAllJacs(self):
