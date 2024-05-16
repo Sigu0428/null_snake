@@ -65,7 +65,10 @@ class simulation:
     self.d = mujoco.MjData(self.m)
     self.jointTorques = [0 ,0,0,0,0,0,0,0,0,0] #simulation reads these and sends to motors at every time step
     self.dt = 1/70 #control loop update rate
-    self.robot_link_names = ["shoulder_link", "upper_arm_link", "forearm_link", "wrist_1_link", "ee_link1", "shoulder_link2", "upper_arm_link2", "forearm_link2", "wrist_1_link2", "wrist_2_link2", "wrist_3_link2", "ee_link2"]
+    self.robot_link_names = ["shoulder_link", "upper_arm_link", "forearm_link", "wrist_1_link", "shoulder_link2", "upper_arm_link2", "forearm_link2", "wrist_1_link2", "wrist_2_link2", "wrist_3_link2", "ee_link2"]
+    
+    # Defined as: 0=x, 1=y, 2=z
+    self.robot_rotation_axis = [1,2,1,1,1,1,2,1,1,1,2,1]
     self.q0=  [0 , -np.pi/2.4, np.pi/2.4, -np.pi/2.2, np.pi,-np.pi/1.7,np.pi/1.7 , np.pi/2, -np.pi/2,0]  # 0, -3*np.pi/4, np.pi/3, np.pi, 0, 0, np.pi/3 , 0, 0,0] #home pose
     self.dq0= [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
 
@@ -82,8 +85,8 @@ class simulation:
     self.tool_name="ee_link2"
     self.Tref=self.robot.fkine(self.qref)
     self.obstacle="blockL01"
-    #self.obstacles = ['blockL01', 'blockL02']
-    self.obstacles = ['blockL01']
+    self.obstacles = ['blockL01', 'blockL02']
+    #self.obstacles = ['blockL01']
     self.refmutex=1
     self.xref=np.zeros(7)#xyz wv1v2v3
     self.dxref=np.zeros(7)#xyz wv1v2v3 
@@ -324,6 +327,8 @@ class simulation:
       
       #update qpos with small step
       self.d.qpos=q
+
+      
 
       #update internal model (kinematics etc) with new vals
       mujoco.mj_kinematics(self.m,self.d)
@@ -732,4 +737,4 @@ class simulation:
     return dist
 
   def repulsion_force_func(self, x, magnetude, decayrate):
-    return (magnetude/(x + 0.3))*np.exp(-decayrate*x)
+    return (magnetude/(x + 0.001))*np.exp(-decayrate*x)

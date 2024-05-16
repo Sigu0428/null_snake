@@ -2,6 +2,8 @@ import numpy as np
 import roboticstoolbox as rtb
 import spatialmath as sm
 from spatialmath import UnitQuaternion
+from scipy.spatial.transform.rotation import Rotation
+
 from spatialmath.base import q2r, r2x, rotx, roty, rotz,tr2eul,tr2rt
 import robot_matrices as rm
 from numpy.linalg import norm, pinv, inv, det
@@ -337,11 +339,16 @@ class null_space_addmitance_controller:
     '''
     This class implements a null space addmitance controller
     '''
-    def __init__(self, kp, mp):
+    def __init__(self, kp, mp, ko, mo):
         self.kp = kp
         self.mp = mp
-
         self.Dp = 2*np.sqrt(mp * kp)*1
+
+
+        self.kp = ko
+        self.mp = mo
+        self.Dp = 2*np.sqrt(mo * ko)*1
+
 
         self.p = PrintArray()
 
@@ -351,7 +358,7 @@ class null_space_addmitance_controller:
         ARGS:
             sim: the simulator object
         '''
-        joints = 10
+        joints = 10 # including end effector frame 
         dt = sim.dt
 
         mp = np.eye(joints)*self.mp
@@ -360,8 +367,10 @@ class null_space_addmitance_controller:
 
         wrenches = np.zeros((joints,6))
         u = np.zeros((joints))
+        
+        for obstacle_index in range(len(sim.obstacles)):
+            ob = sim.obstacles[obstacle_index]
 
-        for ob in sim.obstacles:
             ddpcd = np.zeros((joints, 3))
             dpcd = np.zeros((joints, 3))
             pcd = np.zeros((joints, 3))
@@ -374,17 +383,61 @@ class null_space_addmitance_controller:
 
             o = sim.getObjState(ob)
 
-            for i in range(sim.n):
+
+            for i in range(joints):
+                # Calculating translational distance
                 pli = sim.getObjState(sim.robot_link_names[i])
                 dir = ((o - pli)/np.linalg.norm(o - pli))
                 dist = sim.raycastAfterRobotGeometry(pli, dir)
 
-                if dist < 3 and dist != -1:
-                    #ddpcd[i, :] = -dir * sim.repulsion_force_func(dist, 20, 0.5)
-                    ddpcd[i, :] = -dir * 20
+                if obstacle_index == 0:
+                    pli = sim.getObjState(sim.robot_link_names[i])
+                    dir_ground = np.array([0, 0, -1])
+                    dist_ground = sim.raycast(pli, dir_ground)
 
 
-                    ddocd[i, :] = -dir * 10 # Torque is set randomly for now.
+                # Calculating rotational distance
+                rotation_matrix = sim.getObjFrame(sim.robot_link_names[i]).R
+
+                rotation_axis_index = sim.robot_rotation_axis[i]
+                rotation_axis = rotation_matrix[:, rotation_axis_index]
+                
+
+                plane_parameters = np.cross(rotation_axis, dir)
+                plane_parameters = plane_parameters/np.linalg.norm(plane_parameters)
+
+                dot_product = np.dot(rotation_axis, dir)
+                norm_axis = np.linalg.norm(rotation_axis)
+                norm_dir = np.linalg.norm(dir)
+
+                angle = np.arccos(dot_product/(norm_axis*norm_dir))
+
+                needed_rotation = angle - np.pi/2 # We want the angle to be 90 degrees
+
+
+
+                # Define a angle axis rotation with the plane parameters as the axis of rotation
+                Axis_angle_rotation = plane_parameters/np.linalg.norm(plane_parameters) * needed_rotation
+                rotation = Rotation.from_rotvec(Axis_angle_rotation)
+
+                # Normalize the rotation degrees, to make it a tunable parameter
+                rotation_euler_dir = rotation.as_euler('xyz', degrees=True)
+
+                if dist < 0.2 and dist != -1:
+                    # Translational repulsion
+                    ddpcd[i, :] = -dir * sim.repulsion_force_func(dist, 50, 0.3)
+                    
+
+
+                if dist < 0.5 and dist != -1:
+                    # Rotational repulsion
+
+                    ddocd[i, :] = rotation_euler_dir * 0.5
+
+
+                if dist_ground < 0.1 and obstacle_index == 0: # Only account for ground collision at first object
+                    print("WARNING: Ground collision")
+                    ddpcd[i, :] += dir_ground * sim.repulsion_force_func(dist_ground, 1, 0.5)
 
 
 
@@ -406,10 +459,6 @@ class null_space_addmitance_controller:
 
 
 
-            print("\n"*3)
-            print("All jac.T@wrench[:, j]")
-
-
 
             for j in range(joints):
 
@@ -418,19 +467,18 @@ class null_space_addmitance_controller:
                 
 
                 wrench = wrenches.T
-                print("wrench: ", wrench)
+
 
                 all_torques = jac.T@wrench[:, j]
 
                 u += all_torques # Not if axis shape 1 or zero should be added, im quessing axis 0
 
-                print(jac.T@wrench[:, j])
 
 
 
 
 
-        print("u: ", u)
+
         u = sim.getNullProjMat(sim.getJointAngles())@u
 
 
