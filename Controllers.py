@@ -222,7 +222,7 @@ class grav_compensation_controller:
                 sim: the simulator object
         '''
         #control signal
-        gq= sim.robot.gravload(sim.getJointAngles())
+        gq= sim.getBiasForces()
         u=gq
         return u
 

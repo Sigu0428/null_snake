@@ -255,6 +255,12 @@ class simulation:
 
 
       self.start_time = time.time()
+        
+      T_ref=self.robot.fkine(self.getJointAngles())
+      q_ref=UnitQuaternion(T_ref)
+      T_ref=np.array(T_ref)
+      self.xref[:3]=T_ref[:3,3]
+      self.xref[3:]=q_ref.vec
       while viewer.is_running(): #simulation loop !
         step_start = time.time()
         
@@ -298,44 +304,15 @@ class simulation:
     L = mujoco.mj_fullM(self.m,self.Mpty , self.d.qM)
     return np.copy(self.Mpty[-10:,-10:]) #CHANGES IF DIFFERENT BODIES ADDED
 
-  def getGeometricJacs(self):
+  def getGeometricJac(self):
       self.mojo_internal_mutex.acquire()
-      h=1e-6
-      #get geometric jacobian from mujoco
+      
       jac=np.zeros((6,self.m.nv))
       id=self.m.body("ee_link2").id
       mujoco.mj_jacBody(self.m, self.d, jac[:3], jac[3:], id)
       Je=jac[:,-10:] #CHANGES IF DIFFERENT BODIES ADDED
-
-
-      #integrate joint angles for small timestep h
-      q=np.copy(self.d.qpos)
-      dq=np.copy(self.d.qvel)
-      q_init=np.copy(q)
-      mujoco.mj_integratePos(self.m, q, dq, h)
-      
-      #update qpos with small step
-      self.d.qpos=q
-
-      #update internal model (kinematics etc) with new vals
-      mujoco.mj_kinematics(self.m,self.d)
-      mujoco.mj_comPos(self.m,self.d)
-
-      #get next jacobian
-      jach=np.zeros((6,self.m.nv))
-      mujoco.mj_jacBody(self.m, self.d, jach[:3], jach[3:], id)
-      Jeh=jach[:,-10:] #CHANGES IF DIFFERENT BODIES ADDEDs
-
-      #finite differences
-      Je_dot=(Jeh-Je)/0.01 #why does this shit work
-
-      #reset q back to beginning
-      self.d.qpos=q_init
-      #update internal model (kinematics etc) with new vals
-      mujoco.mj_kinematics(self.m,self.d)
-      mujoco.mj_comPos(self.m,self.d)
       self.mojo_internal_mutex.release()
-      return Je,Je_dot
+      return Je
 
   def getAllJacs(self):
 
@@ -418,11 +395,6 @@ class simulation:
     For each of the controller tasks, it is expected that it has the function get_u, which returns the control signal.
     '''
 
-    T_ref=self.robot.fkine(self.getJointAngles())
-    q_ref=UnitQuaternion(T_ref)
-    T_ref=np.array(T_ref)
-    self.xref[:3]=T_ref[:3,3]
-    self.xref[3:]=q_ref.vec
 
     time_elapsed_list = []
 
@@ -431,7 +403,7 @@ class simulation:
     if self.control_enabled:
 
 
-      u = 0
+      u = [0]*self.n
       for controller in self.controllers:
         u += controller.get_u(self)
 
@@ -546,7 +518,7 @@ class simulation:
 
   def getNullProjMat(self, q): # dynamic projection matrix N, such that tau = tau_main + N@tau_second
     #Je = self.robot.jacob0(q)
-    Je, JE_dot = self.getGeometricJacs()
+    Je, JE_dot = self.getGeometricJac()
     Je_inv = np.linalg.pinv(Je)
     M = self.robot.inertia(q)
 
