@@ -60,21 +60,23 @@ def follow_trajectory(sim, traj, T=20, steps=500):
 if __name__ == "__main__":
     sim=simulation()
 
+    
+    #fast=jitter. Jacdot is off. 
 
     # ----------------- Defining controllers for the simulator -----------------
-    OP_inverse_controller = OP_Space_controller(kd=50, kp_trans=2000,kp_ori=3000)
+    OP_inverse_controller = OP_Space_controller(kd=50, kp_trans=1000,kp_ori=1000)
     #OP_inverse_ZYZ_controller = OP_Space_inverse_ZYZ_controller(kp=10, kd=200)
     #g = grav_compensation_controller()
     #joint_space_PDG = Joint_space_PDG_controller(kp=150, kd=50)
-    SDD_control = SDD_controller(k=0.8)
+    SDD_control = SDD_controller(k=1)
     
 
 
 
     # ----------------- Adding controllers to the simulator -----------------
-    # sim.controllers.append(OP_inverse_controller)
-    sim.controllers.append(SDD_control)
     sim.controllers.append(OP_inverse_controller)
+    sim.controllers.append(SDD_control)
+    #sim.controllers.append(g)
     sim.start() 
 
 
@@ -84,15 +86,18 @@ if __name__ == "__main__":
 
     q_goal = [np.pi/2 , -np.pi/2.4, np.pi/2.4, -np.pi/2.2, np.pi,-np.pi/1.7,np.pi/1.7 , np.pi/2, -np.pi/2,0] 
     q_viapoint = [-np.pi/4, -np.pi/2.4, np.pi/2.4, -np.pi/2.2, np.pi,-np.pi/1.7,np.pi/1.7 , np.pi/2, -np.pi/2,0] 
-
-    steps=[200,200,100]
-    T=[5,5,6,3,3]
-    #viapoints=[sim.robot.fkine(sim.q0)*sm.SE3.RPY(0,0,np.pi/2)] #zyx rot order
+    q_lmao=np.copy(sim.q0)
+    q_lmao[0]+=-np.pi/10
+    steps=[200,200,200]
+    T=[8,8,5,3,3]
     viapoints=[sim.robot.fkine(q_goal)]
-    viapoints.append(sim.robot.fkine(q_viapoint))
+    #viapoints=[sim.robot.fkine(sim.q0)*sm.SE3.RPY(0,0,np.pi/2)] #zyx rot order    
+    #viapoints.append(sim.robot.fkine(q_viapoint))
 
+    viapoints.append(sim.robot.fkine(q_lmao))
+    
 
-    time.sleep(3)
+    time.sleep(2)
 
     for j in range(len(viapoints)):
         if j==0:
@@ -108,19 +113,29 @@ if __name__ == "__main__":
             npTrj[3:,t]=UnitQuaternion(sm.SE3(Tr)).vec
         #xyz quat velocity and acceleration from gradient
         Tvel=np.gradient(npTrj,T[j]/steps[j],axis=1) #time to specify spacing
+        #print(np.gradient(Trj[0:2]))
+        #exit(0)
+        #print(npTrj[:,0:3])
+        #print(Tvel[:,0:3])
         Tacc=np.gradient(Tvel,T[j]/steps[j],axis=1)
-
-        for i in range(steps[j]):
-            while not sim.refmutex: pass
-            sim.refmutex=0
-            sim.xref=npTrj[:,i]
-            sim.dxref=Tvel[:,i]
-            sim.ddxref=Tacc[:,i]
-            sim.refmutex=1
+        starttime=time.time()
+        currenttime=time.time()
+        while(currenttime<(starttime+T[j])):
+            currenttime=time.time()
+            i=(((currenttime-starttime))/T[j])*steps[j]
+      
+            i=int(min(i,steps[j]-1))
+            with sim.refLock:
+                sim.xref=npTrj[:,i]
+                sim.dxref=Tvel[:,i]
+                sim.ddxref=Tacc[:,i]
+        
             #print(sim.xref[:3])
             time.sleep(T[j]/steps[j])
-            print(j)
-        time.sleep(2)
+        with sim.refLock:
+            sim.dxref=np.zeros((7))
+            sim.ddxref=np.zeros((7))
 
+        time.sleep(5)
 
-        time.sleep(1000)
+    time.sleep(1000)

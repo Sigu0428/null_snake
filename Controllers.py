@@ -94,12 +94,11 @@ class OP_Space_controller:
         Kd=np.eye(dim_analytical)*self.kd #velocity gain
 
         #get references
-        while not sim.refmutex: pass
-        sim.refmutex=0
-        xref=sim.xref
-        dxref=sim.dxref
-        ddxref=sim.ddxref
-        sim.refmutex=1
+        with sim.refLock:
+            xref=sim.xref
+            dxref=sim.dxref
+            ddxref=sim.ddxref
+        
 
         dq = np.array(sim.getJointVelocities())
 
@@ -301,7 +300,7 @@ class SDD_controller:
                 dist = sim.raycastAfterRobotGeometry(pli, dir)
 
                 if dist > 0:
-                    gravs[i, :] = dir * sim.repulsion_force_func(dist, 20, 0.5) * self.k
+                    gravs[i, :] = dir * sim.repulsion_force_func(dist, 30, 0.5) * self.k
                     gravs[i: 0:2] = 0
             u += rm.dynamicGrav(gravs, q)
             gravs = np.zeros((10, 3))

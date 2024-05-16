@@ -66,7 +66,7 @@ class simulation:
     self.jointTorques = [0 ,0,0,0,0,0,0,0,0,0] #simulation reads these and sends to motors at every time step
     self.dt = 1/100 #control loop update rate
     self.robot_link_names = ["shoulder_link", "upper_arm_link", "forearm_link", "wrist_1_link", "ee_link1", "shoulder_link2", "upper_arm_link2", "forearm_link2", "wrist_1_link2", "wrist_2_link2", "wrist_3_link2", "ee_link2"]
-    self.q0=  [0 , -np.pi/2.4, np.pi/2.4, -np.pi/2.2, np.pi/2,-np.pi/1.7,np.pi/1.7 , np.pi/2, -np.pi/2,0]  # 0, -3*np.pi/4, np.pi/3, np.pi, 0, 0, np.pi/3 , 0, 0,0] #home pose
+    self.q0=  [0 , -np.pi/2.4, np.pi/2.4, -np.pi/2.2, np.pi,-np.pi/1.7,np.pi/1.7 , np.pi/2, -np.pi/2,0]  # 0, -3*np.pi/4, np.pi/3, np.pi, 0, 0, np.pi/3 , 0, 0,0] #home pose
     self.dq0= [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
 
 
@@ -289,7 +289,7 @@ class simulation:
   def getM(self):
     #mujoco.mj_kinematics(self.m,self.d)  #initial jac depends on this !
    # mujoco.mj_comPos(self.m,self.d)
-
+    #mujoco.mj_forward(self.m,self.d)
     L = mujoco.mj_fullM(self.m,self.Mpty , self.d.qM)
     return np.copy(self.Mpty[-10:,-10:]) #CHANGES IF DIFFERENT BODIES ADDED
 
@@ -310,7 +310,7 @@ class simulation:
       mujoco.mj_kinematics(self.m,self.d)  #initial jac depends on this !
       mujoco.mj_comPos(self.m,self.d)
 
-      h=1e-2 #
+      h=1e-4 #
       #get geometric jacobian from mujoco
       jac=np.zeros((6,self.m.nv))
       id=self.m.body("ee_link2").id
@@ -376,6 +376,7 @@ class simulation:
       #reset q back to beginning
       self.d.qpos=q_init
       #update internal model (kinematics etc) with new vals
+      #mujoco.mj_forward(self.m,self.d) 
       mujoco.mj_kinematics(self.m,self.d)
       mujoco.mj_comPos(self.m,self.d)
 
@@ -409,7 +410,7 @@ class simulation:
       if self.control_enabled:
 
 
-        u = 0
+        u=self.controllers[0].get_u(self)
         for controller in self.controllers:
           u += controller.get_u(self)
 
@@ -482,8 +483,8 @@ class simulation:
     given as sim.Tref
     '''
     # get tool orientation quaternion and analytical jacobian
-
-    self.ee_desired_data.append(self.xref)
+    with self.refLock:
+      self.ee_desired_data.append(self.xref)
 
 
 
@@ -528,9 +529,9 @@ class simulation:
     #Je = self.robot.jacob0(q)
     Je = self.getGeometricJac()
     Je_inv = np.linalg.pinv(Je)
-    #M=self.getM()
+    M=self.getM()
 
-    N =(np.eye(self.n) - Je_inv@Je) # from book
+    N =(np.eye(self.n) - Je_inv@Je)# from book
 
     return N
 
@@ -660,6 +661,7 @@ class simulation:
   def start(self):
     #launch simulation thread
     self.jointLock = Lock()
+    self.refLock = Lock()
     self.sendPositions = False
 
 
