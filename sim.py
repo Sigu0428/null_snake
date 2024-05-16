@@ -247,8 +247,8 @@ class simulation:
           self.d.joint(f"joint{i+1}").qpos=self.q0[i]
 
 
-      control_thrd = Thread(target=self.control_loop,daemon=True) #control loop for commanding torques
-      control_thrd.start()
+      #control_thrd = Thread(target=self.control_loop,daemon=True) #control loop for commanding torques
+      #control_thrd.start()
 
 
       log_data_thrd = Thread(target=self.data_log_loop,daemon=True) #control loop for commanding torques
@@ -259,6 +259,11 @@ class simulation:
       while viewer.is_running(): #simulation loop !
         step_start = time.time()
         
+        self.mojo_internal_mutex.acquire()
+        mujoco.mj_step1(self.m, self.d)
+        self.mojo_internal_mutex.release()
+
+        self.control_loop()
 
         #joint torque application loop
         with self.jointLock: #moved to before mjstep to fix snap
@@ -270,7 +275,7 @@ class simulation:
         # mj_step can be replaced with code that also evaluates
         # a policy and applies a control signal before stepping the physics.
         self.mojo_internal_mutex.acquire()
-        mujoco.mj_step(self.m, self.d)
+        mujoco.mj_step2(self.m, self.d)
         self.mojo_internal_mutex.release()
 
         viewer.sync()
@@ -420,41 +425,37 @@ class simulation:
     self.xref[:3]=T_ref[:3,3]
     self.xref[3:]=q_ref.vec
 
-    time.sleep(self.dt)
     time_elapsed_list = []
 
-    while True:
+    start_time = time.time()
 
-      start_time = time.time()
-
-      if self.control_enabled:
+    if self.control_enabled:
 
 
-        u = 0
-        for controller in self.controllers:
-          u += controller.get_u(self)
+      u = 0
+      for controller in self.controllers:
+        u += controller.get_u(self)
 
 
-        '''
-        for controller in self.nullspace_controllers:
-          u += self.getNullProjMat(self.getJointAngles())@controller.get_u(self)   
-        '''
+      '''
+      for controller in self.nullspace_controllers:
+        u += self.getNullProjMat(self.getJointAngles())@controller.get_u(self)   
+      '''
 
-        self.setJointTorques(u)
+      self.setJointTorques(u)
 
 
 
-      time_elapsed = time.time() - start_time
-      sleep_adjust_time = max(0, self.dt - time_elapsed) # Adjusted for time the control loop takes
-      time.sleep(sleep_adjust_time)
+    time_elapsed = time.time() - start_time
+    sleep_adjust_time = max(0, self.dt - time_elapsed) # Adjusted for time the control loop takes
 
-      
-      
-      time_elapsed = time.time() - start_time
-      time_elapsed_list.append(time_elapsed)
+    
+    
+    time_elapsed = time.time() - start_time
+    time_elapsed_list.append(time_elapsed)
 
-      if len(time_elapsed_list) % 1000 > 0:
-        print(f"Average time per 1000 steps: {np.mean(np.asarray(time_elapsed_list))}  --- adjusted sleep time {sleep_adjust_time}")
+    if len(time_elapsed_list) % 1000 > 0:
+      print(f"Average time per 1000 steps: {np.mean(np.asarray(time_elapsed_list))}  --- adjusted sleep time {sleep_adjust_time}")
 
       
 
