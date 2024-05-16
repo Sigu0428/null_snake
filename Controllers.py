@@ -1,5 +1,4 @@
 import numpy as np
-import roboticstoolbox as rtb
 import spatialmath as sm
 from spatialmath import UnitQuaternion
 from scipy.spatial.transform.rotation import Rotation
@@ -318,7 +317,6 @@ class SDD_controller:
                 dist = sim.raycastAfterRobotGeometry(pli, dir)
                 if dist > 0:
                     gravs[i, :] = dir * sim.repulsion_force_func(dist, 20, 0.5) * self.k
-                    gravs[i: 0:2] = 0
             u += rm.dynamicGrav(gravs, q)
             gravs = np.zeros((10, 3))
 
@@ -328,14 +326,13 @@ class SDD_controller:
             dist = sim.raycast(pli, dir)
             if dist > 0:
                 gravs[i, :] = dir * sim.repulsion_force_func(dist, 1, 0.5) * self.k
-                gravs[i: 0:2] = 0
         u += rm.dynamicGrav(gravs, q)
         u = sim.getNullProjMat(q)@u
         return u
             
 
 
-class null_space_addmitance_controller:
+class Obstable_repulsion_field_controller:
     '''
     This class implements a null space addmitance controller
     '''
@@ -359,11 +356,9 @@ class null_space_addmitance_controller:
             sim: the simulator object
         '''
         joints = 10 # including end effector frame 
-        dt = sim.dt
 
         mp = np.eye(joints)*self.mp
-        kp = np.eye(joints)*self.kp
-        dp = np.eye(joints)*self.Dp
+
 
         wrenches = np.zeros((joints,6))
         u = np.zeros((joints))
@@ -374,11 +369,6 @@ class null_space_addmitance_controller:
             ddpcd = np.zeros((joints, 3))
             dpcd = np.zeros((joints, 3))
             pcd = np.zeros((joints, 3))
-
-
-            ddocd = np.zeros((joints, 3))
-            docd = np.zeros((joints, 3))
-            ocd = np.zeros((joints, 3))
 
 
             o = sim.getObjState(ob)
@@ -396,69 +386,22 @@ class null_space_addmitance_controller:
                     dist_ground = sim.raycast(pli, dir_ground)
 
 
-                # Calculating rotational distance
-                rotation_matrix = sim.getObjFrame(sim.robot_link_names[i]).R
 
-                rotation_axis_index = sim.robot_rotation_axis[i]
-                rotation_axis = rotation_matrix[:, rotation_axis_index]
-                
-
-                plane_parameters = np.cross(rotation_axis, dir)
-                plane_parameters = plane_parameters/np.linalg.norm(plane_parameters)
-
-                dot_product = np.dot(rotation_axis, dir)
-                norm_axis = np.linalg.norm(rotation_axis)
-                norm_dir = np.linalg.norm(dir)
-
-                angle = np.arccos(dot_product/(norm_axis*norm_dir))
-
-                needed_rotation = angle - np.pi/2 # We want the angle to be 90 degrees
-
-
-
-                # Define a angle axis rotation with the plane parameters as the axis of rotation
-                Axis_angle_rotation = plane_parameters/np.linalg.norm(plane_parameters) * needed_rotation
-                rotation = Rotation.from_rotvec(Axis_angle_rotation)
-
-                # Normalize the rotation degrees, to make it a tunable parameter
-                rotation_euler_dir = rotation.as_euler('xyz', degrees=True)
-
-                if dist < 0.2 and dist != -1:
+                if dist < 5 and dist != -1:
                     # Translational repulsion
-                    ddpcd[i, :] = -dir * sim.repulsion_force_func(dist, 50, 0.3)
+
+                    ddpcd[i, :] = -dir * sim.repulsion_force_func(dist, 30, 0.5)
                     
 
-
-                if dist < 0.5 and dist != -1:
-                    # Rotational repulsion
-
-                    ddocd[i, :] = rotation_euler_dir * 0.5
-
-
                 if dist_ground < 0.1 and obstacle_index == 0: # Only account for ground collision at first object
-                    print("WARNING: Ground collision")
-                    ddpcd[i, :] += dir_ground * sim.repulsion_force_func(dist_ground, 1, 0.5)
+                    ddpcd[i, :] += dir_ground * sim.repulsion_force_func(dist_ground, 0.5, 0.5)
 
 
 
-            # Integration of ddpcd - Translation
-            for i in range(joints):
-                dpcd[i, :] = dpcd[i, :] + ddpcd[i, :]*dt
-                pcd[i, :] = pcd[i, :] + dpcd[i, :]*dt
-            
-                # Creating translational controller torques 
-                
-
-                # Integration of ddocd - Orientation # Interation of Euler, it is wrong, shuodl be quaternion
-                docd[i, :] = docd[i, :] + ddocd[i, :]*dt
-                ocd[i, :] = ocd[i, :] + docd[i, :]*dt
 
 
-            wrenches[:, 0:3] += mp@ddpcd + dp@dpcd + kp@pcd
-            wrenches[:, 3:6] += mp@ddocd + dp@docd + kp@ocd
-
-
-
+            #wrenches[:, 0:3] += mp@ddpcd + dp@dpcd + kp@pcd
+            wrenches[:, 0:3] += mp@ddpcd
 
             for j in range(joints):
 
@@ -468,8 +411,10 @@ class null_space_addmitance_controller:
 
                 wrench = wrenches.T
 
+                #all_torques = wrench[:3, j].T@jac[:3, :]
+                all_torques = jac[:3, :].T@wrench[:3, j]
 
-                all_torques = jac.T@wrench[:, j]
+                all_torques = all_torques.T
 
                 u += all_torques # Not if axis shape 1 or zero should be added, im quessing axis 0
 

@@ -64,7 +64,7 @@ class simulation:
     self.m = mujoco.MjModel.from_xml_path('./Ur5_robot/Robot_scene.xml')
     self.d = mujoco.MjData(self.m)
     self.jointTorques = [0 ,0,0,0,0,0,0,0,0,0] #simulation reads these and sends to motors at every time step
-    self.dt = 1/70 #control loop update rate
+    self.dt = 1/40 #control loop update rate
     self.robot_link_names = ["shoulder_link", "upper_arm_link", "forearm_link", "wrist_1_link", "shoulder_link2", "upper_arm_link2", "forearm_link2", "wrist_1_link2", "wrist_2_link2", "wrist_3_link2", "ee_link2"]
     
     # Defined as: 0=x, 1=y, 2=z
@@ -104,6 +104,8 @@ class simulation:
 
     # The list of controllers used
     self.controllers = [] # List of all controllers to be used in the simulation
+    self.mojo_internal_mutex = Lock()
+
 
 
   def initialize_robot(self):
@@ -250,8 +252,8 @@ class simulation:
           self.d.joint(f"joint{i+1}").qpos=self.q0[i]
 
 
-      control_thrd = Thread(target=self.control_loop,daemon=True) #control loop for commanding torques
-      control_thrd.start()
+      #control_thrd = Thread(target=self.control_loop,daemon=True) #control loop for commanding torques
+      #control_thrd.start()
 
 
       log_data_thrd = Thread(target=self.data_log_loop,daemon=True) #control loop for commanding torques
@@ -259,9 +261,23 @@ class simulation:
 
 
       self.start_time = time.time()
+
+
+      T_ref=self.robot.fkine(self.getJointAngles())
+      q_ref=UnitQuaternion(T_ref)
+      T_ref=np.array(T_ref)
+      self.xref[:3]=T_ref[:3,3]
+      self.xref[3:]=q_ref.vec
+
+
       while viewer.is_running(): #simulation loop !
         step_start = time.time()
         
+        self.mojo_internal_mutex.acquire()
+        mujoco.mj_step1(self.m, self.d)
+        self.mojo_internal_mutex.release()
+
+        self.control_loop()
 
         #joint torque application loop
         with self.jointLock: #moved to before mjstep to fix snap
@@ -272,15 +288,27 @@ class simulation:
     
         # mj_step can be replaced with code that also evaluates
         # a policy and applies a control signal before stepping the physics.
-        mujoco.mj_step(self.m, self.d)
+        self.mojo_internal_mutex.acquire()
+        mujoco.mj_step2(self.m, self.d)
+        self.mojo_internal_mutex.release()
 
 
         viewer.sync()
 
         # Rudimentary time keeping, will drift relative to wall clock.
         time_until_next_step = self.m.opt.timestep - (time.time() - step_start)
+
+        '''
+        if time_until_next_step > 0:
+          print("loop time: ", self.m.opt.timestep - (time.time() - step_start))
+        else:
+          print("WARNING: loop time exceeded timestep: ", self.m.opt.timestep - (time.time() - step_start))
+        '''
+
+
         if time_until_next_step > 0:
           time.sleep(time_until_next_step)
+    
     
 
 
@@ -431,41 +459,25 @@ class simulation:
     For each of the controller tasks, it is expected that it has the function get_u, which returns the control signal.
     '''
 
-    T_ref=self.robot.fkine(self.getJointAngles())
-    q_ref=UnitQuaternion(T_ref)
-    T_ref=np.array(T_ref)
-    self.xref[:3]=T_ref[:3,3]
-    self.xref[3:]=q_ref.vec
-
-    time.sleep(self.dt)
-    time_elapsed_list = []
-
-    while True:
-
-      start_time = time.time()
-
-      if self.control_enabled:
-
-
-        u = [0,0,0,0,0,0,0,0,0,0]
-        for controller in self.controllers:
-          u += controller.get_u(self)
 
 
 
-        '''
-        for controller in self.nullspace_controllers:
-          u += self.getNullProjMat(self.getJointAngles())@controller.get_u(self)   
-        '''
+
+    if self.control_enabled:
 
 
-        self.setJointTorques(u)
+      u = [0,0,0,0,0,0,0,0,0,0]
+      for controller in self.controllers:
+        u += controller.get_u(self)
 
 
 
-      time_elapsed = time.time() - start_time
-      sleep_adjust_time = max(0, self.dt - time_elapsed) # Adjusted for time the control loop takes
-      time.sleep(sleep_adjust_time)
+      '''
+      for controller in self.nullspace_controllers:
+        u += self.getNullProjMat(self.getJointAngles())@controller.get_u(self)   
+      '''
+
+      self.setJointTorques(u)
 
             
       '''

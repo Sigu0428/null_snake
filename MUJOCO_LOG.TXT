@@ -2972,3 +2972,30 @@ WARNING: Inertia matrix is too close to singular at DOF 8. Check model. Time = 6
 Thu May 16 17:06:15 2024
 WARNING: Nan, Inf or huge value in QPOS at DOF 0. The simulation is unstable. Time = 6.9500.
 
+Thu May 16 17:11:21 2024
+ERROR: mjv_updateSceneState: m->nu changed
+
+Thu May 16 17:13:07 2024
+ERROR: mjv_updateSceneState: m->nu changed
+
+Thu May 16 17:53:55 2024
+ERROR: mjv_updateSceneState: m->nu changed
+
+Thu May 16 17:57:50 2024
+ERROR: mjv_updateSceneState: m->nu changed
+
+Thu May 16 17:58:26 2024
+ERROR: mjv_updateSceneState: m->nu changed
+
+Thu May 16 18:10:43 2024
+ERROR: mjv_updateSceneState: m->nu changed
+
+Thu May 16 18:18:33 2024
+ERROR: mjv_updateSceneState: m->nu changed
+
+Thu May 16 18:34:03 2024
+ERROR: mjv_updateSceneState: m->nu changed
+
+Thu May 16 18:38:13 2024
+ERROR: mjv_updateSceneState: m->nu changed
+
