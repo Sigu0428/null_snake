@@ -1,7 +1,7 @@
 import numpy as np
 import roboticstoolbox as rtb
 import spatialmath as sm
-from spatialmath import UnitQuaternion
+from spatialmath import UnitQuaternion,Quaternion
 from spatialmath.base import q2r, r2x, rotx, roty, rotz,tr2eul,tr2rt
 import robot_matrices as rm
 from numpy.linalg import norm, pinv, inv, det
@@ -123,7 +123,7 @@ class OP_Space_controller:
         q_ee=UnitQuaternion(obj_q).vec #s,v1,v2,v3
         q_ref=xref[3:]
         
-        x_tilde[3:]= q_ref-q_ee
+        x_tilde[3:]= q_ref-q_ee#Quaternion(q_ee).conj()*Quaternion(q_ref)
 
         # velocity error 
 
@@ -133,6 +133,9 @@ class OP_Space_controller:
         x_dot= JA@dq #dx=JA*dq
         
         x_tilde_dot= dxref-x_dot
+        quatvelref=Quaternion(dxref[3:])
+        quatvelee=Quaternion(x_dot[3:])
+        x_tilde_dot[3:]=quatvelref*quatvelee.conj() 
 
         x_desired_ddot=ddxref #desired acceleration
 
@@ -144,7 +147,6 @@ class OP_Space_controller:
         n=sim.getBiasForces()
         #print((x_desired_ddot+Kd@x_tilde_dot+Kp@x_tilde-JAdot@dq))
     
-
         JA_inv=JA.T@np.linalg.inv(JA@JA.T+2*(sim.DLS_lambda**2)*np.eye(7)) #DLS inverse
         y = JA_inv@(x_desired_ddot+Kd@x_tilde_dot+Kp@x_tilde-JA_dot@dq)
 

@@ -687,3 +687,12 @@ class simulation:
 
   def repulsion_force_func(self, x, magnetude, decayrate):
     return (magnetude/x)*np.exp(-decayrate*x)
+  
+
+  def quatpower(self,q,t):
+    qu=UnitQuaternion(q)
+
+    qt=(qu.log()*t).exp()
+
+    return UnitQuaternion(qt)
+  

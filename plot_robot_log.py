@@ -40,10 +40,11 @@ class robot_plot:
 
         for i in range(len(data)):
 
-            R=q2r(data[i][3:])
+            #R=q2r(data[i][3:])
 
-            rot=r2x(R)
-            orientational_pos.append(rot)
+            #rot=r2x(R)
+            #orientational_pos.append(rot)
+            orientational_pos.append(data[i][3:])
         
         return orientational_pos
                
@@ -66,16 +67,16 @@ class robot_plot:
         rot_data_des_np = np.asarray(rot_data_des)
 
 
-        ax1[0].plot(trans_data_np[:1000,0], label='translation', color='red')
-        ax1[0].plot(trans_data_des_np[:1000,0], label='translation desired',linestyle='--', linewidth=1.0, color='red')
+        ax1[0].plot(trans_data_np[:,0], label='translation', color='red')
+        ax1[0].plot(trans_data_des_np[:,0], label='translation desired',linestyle='--', linewidth=1.0, color='red')
 
 
-        ax1[0].plot(trans_data_np[:1000,1], label='translation', color='green')
-        ax1[0].plot(trans_data_des_np[:1000,1], label='translation desired',linestyle='--', linewidth=1.0, color='green')
+        ax1[0].plot(trans_data_np[:,1], label='translation', color='green')
+        ax1[0].plot(trans_data_des_np[:,1], label='translation desired',linestyle='--', linewidth=1.0, color='green')
         
         
-        ax1[0].plot(trans_data_np[:1000,2], label='translation',  color='blue')
-        ax1[0].plot(trans_data_des_np[:1000,2], label='translation desired',linestyle='--', linewidth=1.0, color='blue')
+        ax1[0].plot(trans_data_np[:,2], label='translation',  color='blue')
+        ax1[0].plot(trans_data_des_np[:,2], label='translation desired',linestyle='--', linewidth=1.0, color='blue')
 
         ax1[0].set_title('translation')
         ax1[0].legend(["x","x_d","y","y_d", "z","z_d"])
@@ -83,16 +84,16 @@ class robot_plot:
 
 
 
-        ax1[1].plot(rot_data_np[:1000,0], label='translation', color='red')
-        ax1[1].plot(rot_data_des_np[:1000,0], label='translation desired',linestyle='--', linewidth=1.0, color='red')
+        ax1[1].plot(rot_data_np[:,0], label='translation', color='red')
+        ax1[1].plot(rot_data_des_np[:,0], label='translation desired',linestyle='--', linewidth=1.0, color='red')
 
 
-        ax1[1].plot(rot_data_np[:1000,1], label='translation',  color='green')
-        ax1[1].plot(rot_data_des_np[:1000,1], label='translation desired',linestyle='--', linewidth=1.0, color='green')
+        ax1[1].plot(rot_data_np[:,1], label='translation',  color='green')
+        ax1[1].plot(rot_data_des_np[:,1], label='translation desired',linestyle='--', linewidth=1.0, color='green')
         
         
-        ax1[1].plot(rot_data_np[:1000,2], label='translation',  color='blue')
-        ax1[1].plot(rot_data_des_np[:1000,2], label='translation desired',linestyle='--', linewidth=1.0, color='blue')
+        ax1[1].plot(rot_data_np[:,2], label='translation',  color='blue')
+        ax1[1].plot(rot_data_des_np[:,2], label='translation desired',linestyle='--', linewidth=1.0, color='blue')
 
         ax1[1].set_title('orientation')
         ax1[1].legend(["roll","roll_d", "pitch", "pitch_d", "yaw","yaw_d"])
