@@ -69,6 +69,7 @@ class simulation:
     self.q0=  [0 , -np.pi/2.4, np.pi/2.4, -np.pi/2.2, np.pi,-np.pi/1.7,np.pi/1.7 , np.pi/2, -np.pi/2,0]  # 0, -3*np.pi/4, np.pi/3, np.pi, 0, 0, np.pi/3 , 0, 0,0] #home pose
     self.dq0= [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
     self.mojo_internal_mutex = Lock()
+    self.refLock = Lock()
 
 
     # Peter corke robot model initialization
@@ -89,7 +90,7 @@ class simulation:
     self.dxref=np.zeros(7)#xyz wv1v2v3 
     self.ddxref=np.zeros(7) #xyz wv1v2v3 
     self.Mpty=np.zeros((self.m.nv, self.m.nv))
-
+    self.DLS_lambda=0.7
 
 
     # logging of data for plotting:
@@ -144,7 +145,7 @@ class simulation:
     i7 = np.array([[0.0, 0., 0.],    [0., 0.0, 0.],   [0., 0., 0.00000001]])
     i8 = np.array([[0.0, 0.0, 0.0],    [0.0, 0.0, 0.0],   [0.0, 0.0, 0.00000001]])
     i9 = np.array([[0.0, 0.0, 0.0],    [0.0, 0.0, 0.0],   [0.0, 0.0, 0.00000001]])
-    i10 = np.array([[0.0, 0.0, 0.0],    [0.0, 0.0, 0.0],   [0.0, 0.0, 0.00000001]])
+    i10 = np.array([[0.0, 0.0, 0.0],    [0.0, 0.0, 0.0],   [0.0, 0.0, 0.01]])
 
     m1 = 3.761
     m2 = 8.058
@@ -241,9 +242,7 @@ class simulation:
 
       #initialize joint values to home before running sim
       for i in range(0, self.n):
-        if i==8:
-          self.d.joint(f"joint{i+1}").qpos=self.q0[i]#+1.2 uncomment this to add a small offset to verify  rotation works
-        else:
+
           self.d.joint(f"joint{i+1}").qpos=self.q0[i]
 
 
@@ -256,6 +255,12 @@ class simulation:
 
 
       self.start_time = time.time()
+        
+      T_ref=self.robot.fkine(self.getJointAngles())
+      q_ref=UnitQuaternion(T_ref)
+      T_ref=np.array(T_ref)
+      self.xref[:3]=T_ref[:3,3]
+      self.xref[3:]=q_ref.vec
       while viewer.is_running(): #simulation loop !
         step_start = time.time()
         
@@ -297,46 +302,24 @@ class simulation:
 
   def getM(self):
     L = mujoco.mj_fullM(self.m,self.Mpty , self.d.qM)
+
+    #mujoco.mj_solveM(self.m,self.d,self.Mpty,np.eye(self.m.nv))
+    #Minv=np.copy(self.Mpty[-10:,-10:])
+    #if abs(np.linalg.det(Minv)) >= 1e-2:
+    #    M = np.linalg.inv(Minv)
+    #else:
+    #    M = np.linalg.pinv(Minv, rcond=1e-2)
     return np.copy(self.Mpty[-10:,-10:]) #CHANGES IF DIFFERENT BODIES ADDED
 
-  def getGeometricJacs(self):
+  def getGeometricJac(self):
       self.mojo_internal_mutex.acquire()
-      h=1e-6
-      #get geometric jacobian from mujoco
+      
       jac=np.zeros((6,self.m.nv))
       id=self.m.body("ee_link2").id
       mujoco.mj_jacBody(self.m, self.d, jac[:3], jac[3:], id)
       Je=jac[:,-10:] #CHANGES IF DIFFERENT BODIES ADDED
-
-
-      #integrate joint angles for small timestep h
-      q=np.copy(self.d.qpos)
-      dq=np.copy(self.d.qvel)
-      q_init=np.copy(q)
-      mujoco.mj_integratePos(self.m, q, dq, h)
-      
-      #update qpos with small step
-      self.d.qpos=q
-
-      #update internal model (kinematics etc) with new vals
-      mujoco.mj_kinematics(self.m,self.d)
-      mujoco.mj_comPos(self.m,self.d)
-
-      #get next jacobian
-      jach=np.zeros((6,self.m.nv))
-      mujoco.mj_jacBody(self.m, self.d, jach[:3], jach[3:], id)
-      Jeh=jach[:,-10:] #CHANGES IF DIFFERENT BODIES ADDEDs
-
-      #finite differences
-      Je_dot=(Jeh-Je)/0.01 #why does this shit work
-
-      #reset q back to beginning
-      self.d.qpos=q_init
-      #update internal model (kinematics etc) with new vals
-      mujoco.mj_kinematics(self.m,self.d)
-      mujoco.mj_comPos(self.m,self.d)
       self.mojo_internal_mutex.release()
-      return Je,Je_dot
+      return Je
 
   def getJointJacob(self, joint):
       jac=np.zeros((6,self.m.nv))
@@ -405,8 +388,8 @@ class simulation:
       Jeh=jach[:,-10:] #CHANGES IF DIFFERENT BODIES ADDEDs
 
       #finite differences
-      Je_dot=(Jeh-Je)/0.01 #why does this shit work
-      TA_inv_dot=(TA_inv_post-TA_inv_pre)/0.01
+      Je_dot=(Jeh-Je)/h #why does this shit work
+      TA_inv_dot=(TA_inv_post-TA_inv_pre)/h
 
       #reset q back to beginning
       self.d.qpos=q_init
@@ -426,11 +409,6 @@ class simulation:
     For each of the controller tasks, it is expected that it has the function get_u, which returns the control signal.
     '''
 
-    T_ref=self.robot.fkine(self.getJointAngles())
-    q_ref=UnitQuaternion(T_ref)
-    T_ref=np.array(T_ref)
-    self.xref[:3]=T_ref[:3,3]
-    self.xref[3:]=q_ref.vec
 
     time_elapsed_list = []
 
@@ -439,7 +417,7 @@ class simulation:
     if self.control_enabled:
 
 
-      u = 0
+      u = np.zeros(len(self.q0))
       for controller in self.controllers:
         u += controller.get_u(self)
 
@@ -461,8 +439,8 @@ class simulation:
     time_elapsed = time.time() - start_time
     time_elapsed_list.append(time_elapsed)
 
-    if len(time_elapsed_list) % 1000 > 0:
-      print(f"Average time per 1000 steps: {np.mean(np.asarray(time_elapsed_list))}  --- adjusted sleep time {sleep_adjust_time}")
+    #if len(time_elapsed_list) % 1000 > 0:
+     # print(f"Average time per 1000 steps: {np.mean(np.asarray(time_elapsed_list))}  --- adjusted sleep time {sleep_adjust_time}")
 
       
 
@@ -554,11 +532,12 @@ class simulation:
 
   def getNullProjMat(self, q): # dynamic projection matrix N, such that tau = tau_main + N@tau_second
     #Je = self.robot.jacob0(q)
-    Je, JE_dot = self.getGeometricJacs()
+    Je = self.getGeometricJac()
     Je_inv = np.linalg.pinv(Je)
     M = self.robot.inertia(q)
 
     N = (np.eye(self.n) - Je_inv@Je) # from book
+
 
     return N
 
@@ -722,3 +701,12 @@ class simulation:
 
   def repulsion_force_func(self, x, magnetude, decayrate):
     return (magnetude/x)*np.exp(-decayrate*x)
+  
+
+  def quatpower(self,q,t):
+    qu=UnitQuaternion(q)
+
+    qt=(qu.log()*t).exp()
+
+    return UnitQuaternion(qt)
+  

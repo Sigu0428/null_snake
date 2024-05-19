@@ -6,6 +6,7 @@ import scipy.io
 import sys
 
 
+
 class PrintArray:
 
     def __init__(self, **kwargs):
@@ -62,18 +63,18 @@ if __name__ == "__main__":
 
 
     # ----------------- Defining controllers for the simulator -----------------
-    OP_inverse_controller = OP_Space_controller(kd=50, kp_trans=2000,kp_ori=3000)
+    OP_inverse_controller = OP_Space_controller(kd=100, kp_trans=2000,kp_ori=4000)
     #OP_inverse_ZYZ_controller = OP_Space_inverse_ZYZ_controller(kp=10, kd=200)
     #g = grav_compensation_controller()
     #joint_space_PDG = Joint_space_PDG_controller(kp=150, kd=50)
-    SDD_control = SDD_controller(k=0.8)
+    SDD_control = SDD_controller(k=1)
     
 
 
 
     # ----------------- Adding controllers to the simulator -----------------
     # sim.controllers.append(OP_inverse_controller)
-    sim.controllers.append(SDD_control)
+    #sim.controllers.append(SDD_control)
     sim.controllers.append(OP_inverse_controller)
     sim.start() 
 
@@ -106,21 +107,28 @@ if __name__ == "__main__":
             Tr=np.array(Trj[t])
             npTrj[:3,t]=Tr[:3,3]
             npTrj[3:,t]=UnitQuaternion(sm.SE3(Tr)).vec
-        #xyz quat velocity and acceleration from gradient
+        #xyz velocoity and acceleration from gradient
         Tvel=np.gradient(npTrj,T[j]/steps[j],axis=1) #time to specify spacing
         Tacc=np.gradient(Tvel,T[j]/steps[j],axis=1)
+        #slerp velocity and acceleration for quats:
+        q0=UnitQuaternion(npTrj[3:,0])
+        q1=UnitQuaternion(npTrj[3:,-1])
+        for t in range(len(Trj)): 
+            # 0<=t<=1
+            Tvel[3:,t]=q0*sim.quatpower((q0.conj()*q1),((t+1)/steps[j]))*UnitQuaternion(q0.conj()*q1).log() #t+1 to avoid q^0
+            #second derivative (homebrewed)
+            Tacc[3:,t]=q0*sim.quatpower((q0.conj()*q1),((t+1)/steps[j]))*UnitQuaternion(q0.conj()*q1).log()*UnitQuaternion(q0.conj()*q1).log() #t+1 to avoid q^0
 
         for i in range(steps[j]):
-            while not sim.refmutex: pass
-            sim.refmutex=0
-            sim.xref=npTrj[:,i]
-            sim.dxref=Tvel[:,i]
-            sim.ddxref=Tacc[:,i]
-            sim.refmutex=1
+            with sim.refLock:
+                sim.xref=npTrj[:,i]
+                sim.dxref=Tvel[:,i]
+                sim.ddxref=Tacc[:,i]
+                
             #print(sim.xref[:3])
             time.sleep(T[j]/steps[j])
-            print(j)
+     
         time.sleep(2)
 
 
-        time.sleep(1000)
+    time.sleep(1000)
