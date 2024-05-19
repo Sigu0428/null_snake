@@ -95,10 +95,11 @@ class robot_plot:
         ax1[1].plot(rot_data_np[:,2], label='translation',  color='blue')
         ax1[1].plot(rot_data_des_np[:,2], label='translation desired',linestyle='--', linewidth=1.0, color='blue')
 
+        ax1[1].plot(rot_data_np[:,3], label='translation',  color='blue')
+        ax1[1].plot(rot_data_des_np[:,3], label='translation desired',linestyle='--', linewidth=1.0, color='purple')
         ax1[1].set_title('orientation')
-        ax1[1].legend(["roll","roll_d", "pitch", "pitch_d", "yaw","yaw_d"])
-        ax1[1].set_title('orientation')
-        ax1[1].legend(["roll","pitch","yaw","roll_d","pitch_d","yaw_d"])
+        ax1[1].legend(["s","s_d", "v1", "v1_d", "v2","v2_d", "v3","v3_d"])
+        
         plt.show()
 
 

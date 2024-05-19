@@ -90,7 +90,7 @@ class simulation:
     self.dxref=np.zeros(7)#xyz wv1v2v3 
     self.ddxref=np.zeros(7) #xyz wv1v2v3 
     self.Mpty=np.zeros((self.m.nv, self.m.nv))
-    self.DLS_lambda=0.5
+    self.DLS_lambda=0.7
 
 
     # logging of data for plotting:
@@ -145,7 +145,7 @@ class simulation:
     i7 = np.array([[0.0, 0., 0.],    [0., 0.0, 0.],   [0., 0., 0.00000001]])
     i8 = np.array([[0.0, 0.0, 0.0],    [0.0, 0.0, 0.0],   [0.0, 0.0, 0.00000001]])
     i9 = np.array([[0.0, 0.0, 0.0],    [0.0, 0.0, 0.0],   [0.0, 0.0, 0.00000001]])
-    i10 = np.array([[0.0, 0.0, 0.0],    [0.0, 0.0, 0.0],   [0.0, 0.0, 0.00000001]])
+    i10 = np.array([[0.0, 0.0, 0.0],    [0.0, 0.0, 0.0],   [0.0, 0.0, 0.01]])
 
     m1 = 3.761
     m2 = 8.058
@@ -302,6 +302,13 @@ class simulation:
 
   def getM(self):
     L = mujoco.mj_fullM(self.m,self.Mpty , self.d.qM)
+
+    #mujoco.mj_solveM(self.m,self.d,self.Mpty,np.eye(self.m.nv))
+    #Minv=np.copy(self.Mpty[-10:,-10:])
+    #if abs(np.linalg.det(Minv)) >= 1e-2:
+    #    M = np.linalg.inv(Minv)
+    #else:
+    #    M = np.linalg.pinv(Minv, rcond=1e-2)
     return np.copy(self.Mpty[-10:,-10:]) #CHANGES IF DIFFERENT BODIES ADDED
 
   def getGeometricJac(self):
