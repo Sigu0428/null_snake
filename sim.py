@@ -338,6 +338,13 @@ class simulation:
       self.mojo_internal_mutex.release()
       return Je,Je_dot
 
+  def getJointJacob(self, joint):
+      jac=np.zeros((6,self.m.nv))
+      id=self.m.body(joint).id
+      mujoco.mj_jacBody(self.m, self.d, jac[:3], jac[3:], id)
+      Je=jac[:,-10:] #CHANGES IF DIFFERENT BODIES ADDED
+      return Je
+
   def getAllJacs(self):
 
       h=1e-8
