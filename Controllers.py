@@ -5,11 +5,57 @@ from spatialmath import UnitQuaternion,Quaternion
 from spatialmath.base import q2r, r2x, rotx, roty, rotz,tr2eul,tr2rt
 import robot_matrices as rm
 from numpy.linalg import norm, pinv, inv, det
-
+import time
+import math
 
 '''
 This python file handles all the controllers which will be used by the simulator.
 '''
+
+class MaciejewskiEtAl_controller:
+    def __init__(self, Kd, Kp): # Kp=np.eye(10)*100, Kd=np.eye(3)
+        # quirky trajectory placeholder 
+        a = 5
+        b = 1.5
+        c = 0.9
+        self.x = lambda t: np.array([(np.sin(t/a + np.pi) + c)/b, (np.sin(t/a) + c)/b, 0.5])
+        self.dx = lambda t: np.array([-np.cos(t/a)/(a*b), np.cos(t/a)/(a*b), 0])
+        self.ddx = lambda t: np.array([np.sin(t/a)/(a*a*b), -np.sin(t/a)/(a*a*b), 0])
+        self.Kd = Kd
+        self.Kp = Kp
+    
+    def get_u(self, sim):
+        Je, _ = sim.getGeometricJacs()
+        Je = Je[0:3, :]
+
+        dq = np.array(sim.getJointVelocities())
+        q = np.array(sim.getJointAngles())
+        t = time.time() - sim.start_time
+        
+        dxe = self.dx(t) + self.Kd@(self.x(t) - sim.getObjState("ee_link2"))
+        
+        dxo = None
+        d = math.inf
+        Jo = None
+        for ob in ["blockL01", "blockL02"]:
+            o = sim.getObjState(ob)
+            for joint in ["wrist_1_link", "shoulder_link2", "forearm_link2"]:
+                pli = sim.getObjState(joint)
+                dir = ((o - pli)/np.linalg.norm(o - pli))
+                dist = sim.raycastAfterRobotGeometry(pli, dir)
+                if dist < 0: dist = math.inf
+                if dist < d:
+                    d = dist
+                    dxo = -dir
+                    Jo = sim.getJointJacob(joint)
+                    Jo = Jo[0:3, :]
+        
+        an = lambda d: np.tanh(-10*(d-0.3))
+        ao = lambda d: 0.2*np.exp(-10*d)/d
+
+        dtheta = pinv(Je)@dxe + an(d)*pinv(Jo@(np.eye(10) - pinv(Je)@Je))@(ao(d)*dxo - Jo@pinv(Je)@dxe)
+        u = sim.robot.gravload(q) + self.Kp@(dtheta - dq)
+        return u
 
 
 class OP_Space_inverse_controller:
