@@ -154,7 +154,89 @@ class OP_Space_controller:
 
         return u
     
+class OP_Space_Velocity_controller:
+    '''
+    Follows trajectory better, maybe small probability of instability
+    '''
 
+    def __init__(self, kd=1, kp_trans=1,kp_ori=1):
+        self.kp_trans = kp_trans
+        self.kp_ori = kp_ori
+        self.kd = kd
+
+
+    def get_u(self, sim):
+
+        dim_analytical=7
+        Kp=np.eye(dim_analytical)
+        Kp[:3,:3]=np.eye(int(np.floor(dim_analytical/2)))*self.kp_trans #translational gain
+        Kp[3:,3:]=np.eye(int(np.ceil(dim_analytical/2)))*self.kp_ori #orientational gain
+
+        Kd=np.eye(dim_analytical)*self.kd #velocity gain
+
+        #get references
+        with sim.refLock:
+            xref=np.copy(sim.xref)
+            dxref=np.copy(sim.dxref)
+            ddxref=np.copy(sim.ddxref)
+        q=np.array(sim.getJointAngles())
+        dq = np.array(sim.getJointVelocities())
+
+        # get tool orientation quaternion and analytical jacobian
+
+        T_ee=np.array(sim.getObjFrame(sim.tool_name))
+
+        Je,Je_dot,JA,JA_dot=sim.getAllJacs()
+
+        #print(sim.robot.jacob0_dot(q,dq))
+        #print("....................")
+        #print(Je_dot)        
+    
+        # xtilde
+        x_tilde=np.zeros(dim_analytical)
+        # relative translation
+
+        x_tilde[:3]=xref[:3]-T_ee[:3,3] #translational error
+        
+        # relative orientation by quaternions:
+        #JA,q_ee,JAdot=sim.getAnalyticalJacobian(Je,Je_dot)
+        obj_q = sim.d.body(sim.tool_name).xquat
+        q_ee=UnitQuaternion(obj_q).vec #s,v1,v2,v3
+        q_ref=xref[3:]
+        
+        x_tilde[3:]= q_ref-q_ee#Quaternion(q_ee).conj()*Quaternion(q_ref)
+
+        # velocity error 
+
+        x_tilde_dot=np.zeros(dim_analytical) 
+
+        
+        x_dot= JA@dq #dx=JA*dq
+        
+        x_tilde_dot= dxref-x_dot
+        quatvelref=Quaternion(dxref[3:])
+        quatvelee=Quaternion(x_dot[3:])
+        x_tilde_dot[3:]=quatvelref*quatvelee.conj() 
+
+        x_desired_ddot=ddxref #desired acceleration
+
+        #control signal
+
+        #gq= self.robot.gravload(q)
+        B = sim.getM()
+        #C = self.robot.coriolis(q,dq)
+        n=sim.getBiasForces()
+        #print((x_desired_ddot+Kd@x_tilde_dot+Kp@x_tilde-JAdot@dq))
+    
+        JA_inv=JA.T@np.linalg.inv(JA@JA.T+2*(sim.DLS_lambda**2)*np.eye(7)) #DLS inverse
+
+        q_e_ddot=JA_inv@(x_desired_ddot+Kd@x_tilde_dot+Kp@x_tilde-JA_dot@dq)
+
+        q_e_dot=dq+q_e_ddot*sim.m.opt.timestep
+
+        u = np.eye(10)*100@(q_e_dot-dq) + n
+
+        return u
 
 
 class OP_Space_inverse_ZYZ_controller:
