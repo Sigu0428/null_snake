@@ -193,7 +193,7 @@ class OP_Space_controller:
         n=sim.getBiasForces()
         #print((x_desired_ddot+Kd@x_tilde_dot+Kp@x_tilde-JAdot@dq))
     
-        JA_inv=JA.T@np.linalg.inv(JA@JA.T+2*(sim.DLS_lambda**2)*np.eye(7)) #DLS inverse
+        JA_inv=JA.T@np.linalg.inv(JA@JA.T+(sim.DLS_lambda**2)*np.eye(7)) #DLS inverse
         y = JA_inv@(x_desired_ddot+Kd@x_tilde_dot+Kp@x_tilde-JA_dot@dq)
 
         u = B@y + n
@@ -205,10 +205,11 @@ class OP_Space_Velocity_controller:
     Follows trajectory better, maybe small probability of instability
     '''
 
-    def __init__(self, kd=1, kp_trans=1,kp_ori=1):
+    def __init__(self, kd=1, kp_trans=1,kp_ori=1,Kv=1):
         self.kp_trans = kp_trans
         self.kp_ori = kp_ori
         self.kd = kd
+        self.kv=Kv
 
 
     def get_u(self, sim):
@@ -274,13 +275,44 @@ class OP_Space_Velocity_controller:
         n=sim.getBiasForces()
         #print((x_desired_ddot+Kd@x_tilde_dot+Kp@x_tilde-JAdot@dq))
     
-        JA_inv=JA.T@np.linalg.inv(JA@JA.T+2*(sim.DLS_lambda**2)*np.eye(7)) #DLS inverse
+        JA_inv=JA.T@np.linalg.inv(JA@JA.T+(sim.DLS_lambda**2)*np.eye(7)) #DLS inverse
 
-        q_e_ddot=JA_inv@(x_desired_ddot+Kd@x_tilde_dot+Kp@x_tilde-JA_dot@dq)
+        q_e_ddot=JA_inv@(x_desired_ddot+Kd@x_tilde_dot+Kp@x_tilde-JA_dot@dq) #
 
         q_e_dot=dq+q_e_ddot*sim.m.opt.timestep
 
-        u = np.eye(10)*100@(q_e_dot-dq) + n
+        #Machenviseskesr7rt controller
+        dxo = None
+        d = math.inf
+        Jo = None
+        for ob in ["blockL01", "blockL02"]:
+            o = sim.getObjState(ob)
+            for joint in  ["shoulder_link2"]:# "wrist_1_link", "shoulder_link2", "forearm_link2"]:
+                pli = sim.getObjState(joint)
+                dir = ((o - pli)/np.linalg.norm(o - pli))
+                dist = sim.raycastAfterRobotGeometry(pli, dir)
+                if dist < 0: dist = math.inf
+                if dist < d:
+                    d = dist
+                    dxo = -dir
+                    Jo = sim.getJointJacob(joint)
+                    Jo = Jo[0:3, :]
+        thresh=0.3
+        smoothing=10
+        decay=10
+
+        an = lambda d: np.tanh(-smoothing*(d-thresh))
+        
+        ao = lambda d:  0.2*np.exp(-decay*d)/d
+
+        dampen=0.05
+        Je_inv=Je.T@np.linalg.inv(Je@Je.T+(dampen**2)*np.eye(6))
+        JoJe_inv=(Jo@(np.eye(10) - Je_inv@Je)).T@np.linalg.inv((Jo@(np.eye(10) - Je_inv@Je))@(Jo@(np.eye(10) - Je_inv@Je)).T+(dampen**2)*np.eye(3))
+
+        dtheta = q_e_dot+ an(d)*JoJe_inv@(ao(d)*dxo - Jo@q_e_dot)
+        #dtheta = q_e_dot+ an(d)*np.linalg.pinv((Jo@(np.eye(10) - np.linalg.pinv(Je)@Je)))@(ao(d)*dxo - Jo@q_e_dot)
+        u = np.eye(10)*self.kv@(dtheta - dq) + n
+
 
         return u
 

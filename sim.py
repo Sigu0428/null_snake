@@ -558,6 +558,14 @@ class simulation:
       qState.append(float(self.d.joint(f"joint{i+1}").qvel[0])) 
       
     return qState
+  
+  def getJointAcc(self):
+    ## State of the simulater robot 
+    qState=[]    
+    for i in range(0, self.n):
+      qState.append(float(self.d.joint(f"joint{i+1}").qacc[0])) 
+      
+    return qState
 
   
   def getObjState(self, name):
