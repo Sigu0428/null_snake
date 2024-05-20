@@ -124,11 +124,11 @@ class OP_Space_controller:
     Follows trajectory better, maybe small probability of instability
     '''
 
-    def __init__(self, kd=1, kp_trans=1,kp_ori=1):
+    def __init__(self, kd=1, kp_trans=1,kp_ori=1,lambdaTraj=0.7):
         self.kp_trans = kp_trans
         self.kp_ori = kp_ori
         self.kd = kd
-
+        self.lambdaTraj=lambdaTraj
 
     def get_u(self, sim):
 
@@ -193,7 +193,7 @@ class OP_Space_controller:
         n=sim.getBiasForces()
         #print((x_desired_ddot+Kd@x_tilde_dot+Kp@x_tilde-JAdot@dq))
     
-        JA_inv=JA.T@np.linalg.inv(JA@JA.T+(sim.DLS_lambda**2)*np.eye(7)) #DLS inverse
+        JA_inv=JA.T@np.linalg.inv(JA@JA.T+(self.lambdaTraj**2)*np.eye(7)) #DLS inverse
         y = JA_inv@(x_desired_ddot+Kd@x_tilde_dot+Kp@x_tilde-JA_dot@dq)
 
         u = B@y + n
@@ -205,12 +205,13 @@ class OP_Space_Velocity_controller:
     Follows trajectory better, maybe small probability of instability
     '''
 
-    def __init__(self, kd=1, kp_trans=1,kp_ori=1,Kv=1):
+    def __init__(self, kd=1, kp_trans=1,kp_ori=1,Kv=1,lambdaTraj=0.7,lambdaAvoid=0.05):
         self.kp_trans = kp_trans
         self.kp_ori = kp_ori
         self.kd = kd
         self.kv=Kv
-
+        self.lambdaTraj=lambdaTraj
+        self.lambdaAvoid=lambdaAvoid
 
     def get_u(self, sim):
 
@@ -275,7 +276,7 @@ class OP_Space_Velocity_controller:
         n=sim.getBiasForces()
         #print((x_desired_ddot+Kd@x_tilde_dot+Kp@x_tilde-JAdot@dq))
     
-        JA_inv=JA.T@np.linalg.inv(JA@JA.T+(sim.DLS_lambda**2)*np.eye(7)) #DLS inverse
+        JA_inv=JA.T@np.linalg.inv(JA@JA.T+(self.lambdaTraj**2)*np.eye(7)) #DLS inverse
 
         q_e_ddot=JA_inv@(x_desired_ddot+Kd@x_tilde_dot+Kp@x_tilde-JA_dot@dq) #
 
@@ -285,9 +286,9 @@ class OP_Space_Velocity_controller:
         dxo = None
         d = math.inf
         Jo = None
-        for ob in ["blockL01", "blockL02"]:
+        for ob in sim.obstacles:
             o = sim.getObjState(ob)
-            for joint in  ["shoulder_link2"]:# "wrist_1_link", "shoulder_link2", "forearm_link2"]:
+            for joint in [ "wrist_1_link", "shoulder_link2", "forearm_link2","wrist_2_link2"]:#["shoulder_link2"]:# "wrist_1_link", "shoulder_link2", "forearm_link2"]:
                 pli = sim.getObjState(joint)
                 dir = ((o - pli)/np.linalg.norm(o - pli))
                 dist = sim.raycastAfterRobotGeometry(pli, dir)
@@ -305,7 +306,7 @@ class OP_Space_Velocity_controller:
         
         ao = lambda d:  0.2*np.exp(-decay*d)/d
 
-        dampen=0.05
+        dampen=self.lambdaAvoid
         Je_inv=Je.T@np.linalg.inv(Je@Je.T+(dampen**2)*np.eye(6))
         JoJe_inv=(Jo@(np.eye(10) - Je_inv@Je)).T@np.linalg.inv((Jo@(np.eye(10) - Je_inv@Je))@(Jo@(np.eye(10) - Je_inv@Je)).T+(dampen**2)*np.eye(3))
 

@@ -61,26 +61,27 @@ def follow_trajectory(sim, traj, T=20, steps=500):
 if __name__ == "__main__":
     sim=simulation()
 
+    sim.obstacles=["sphere1","sphere2","sphere3","sphere4"]
 
     # ----------------- Defining controllers for the simulator -----------------
-    #OP_inverse_controller = OP_Space_controller(kd=150, kp_trans=5000,kp_ori=4000)
-    OP_vel_controller = OP_Space_Velocity_controller(kd=140, kp_trans=3000,kp_ori=3000,Kv=150)
+    OP_inverse_controller = OP_Space_controller(kd=150, kp_trans=4000,kp_ori=4000,lambdaTraj=0.9)
+    OP_vel_controller = OP_Space_Velocity_controller(kd=150, kp_trans=2000,kp_ori=2000,Kv=50,lambdaTraj=0.7,lambdaAvoid=0.05)
     #OP_inverse_ZYZ_controller = OP_Space_inverse_ZYZ_controller(kp=10, kd=200)
-    #g = grav_compensation_controller()
+    g = grav_compensation_controller()
     #joint_space_PDG = Joint_space_PDG_controller(kp=150, kd=50)
-    #SDD_control = SDD_controller(k=1)
+    SDD_control = SDD_controller(k=0.5)
     
 
 
 
     # ----------------- Adding controllers to the simulator -----------------
-    # sim.controllers.append(OP_inverse_controller)ø
+    #sim.controllers.append(OP_inverse_controller)
     sim.controllers.append(OP_vel_controller)
     #sim.controllers.append(SDD_control)
     #sim.controllers.append(g)
     sim.start() 
 
-
+    #time.sleep(10000)
 
     # ----------------- Trajectory Generation -----------------
 

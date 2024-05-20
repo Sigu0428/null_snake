@@ -61,7 +61,7 @@ class simulation:
 
 
 
-    self.m = mujoco.MjModel.from_xml_path('./Ur5_robot/Robot_scene.xml')
+    self.m = mujoco.MjModel.from_xml_path('./Ur5_robot/Robot_scene_dense.xml')
     self.d = mujoco.MjData(self.m)
     self.jointTorques = [0 ,0,0,0,0,0,0,0,0,0] #simulation reads these and sends to motors at every time step
     self.dt = 1/40 #control loop update rate
@@ -267,6 +267,9 @@ class simulation:
         self.mojo_internal_mutex.acquire()
         mujoco.mj_step1(self.m, self.d)
         self.mojo_internal_mutex.release()
+
+        print((self.d.body("test").xpos,self.d.body("test").xquat))
+     
 
         self.control_loop()
 

@@ -1,0 +1,59 @@
+<mujoco model="ur5e scene">
+
+  
+  <statistic center="0.3 0 0.4" extent="0.8"/>
+
+  <visual>
+    <headlight diffuse="0.6 0.6 0.6" ambient="0.1 0.1 0.1" specular="0 0 0"/>
+    <rgba haze="0.15 0.25 0.35 1"/>
+    <quality shadowsize="0"/>
+  </visual>
+
+  <asset>
+    <texture type="skybox" builtin="gradient" rgb1="0.3 0.5 0.7" rgb2="0 0 0" width="512" height="3072"/>
+    <texture type="2d" name="groundplane" builtin="checker" mark="edge" rgb1="0.2 0.3 0.4" rgb2="0.1 0.2 0.3"
+      markrgb="0.8 0.8 0.8" width="300" height="300"/>
+    <material name="groundplane" texture="groundplane" texuniform="true" texrepeat="5 5" reflectance="0"/>
+  </asset>
+
+  <worldbody>
+    <!--	================= Coordinate system ================= /-->
+		<light directional="false" cutoff="135" exponent="10" diffuse=".7 .7 .7" pos="0.4 -0.2 5.5" dir="-0.4 0.2 -5.5" specular=".3 .3 .3"/>
+		<geom group="2" type="cylinder" contype="0" conaffinity="0" fromto="0 0 0 1 0 0" size="0.01" rgba="1 0 0 1"/>
+		<geom group="2" type="cylinder" contype="0" conaffinity="0" fromto="0 0 0 0 1 0" size="0.01" rgba="0 1 0 1"/>
+		<geom group="2" type="cylinder" contype="0" conaffinity="0" fromto="0 0 0 0 0 1" size="0.01" rgba="0 0 1 1"/>
+
+    <light pos="0 0 1.5" dir="0 0 -1" directional="true"/>
+    <geom name="floor" size="0 0 0.05" type="plane" material="groundplane"/>
+
+  <body name="sphere1" pos="0.76340999 0.50321585 0.16606963" quat="1 0 0 0" >
+      <geom type="sphere" mass="0.4" size="0.18" rgba="0 1 0 0.5" group="1"/>
+      <inertial pos="0 0 0" mass="0.2" diaginertia="0.001 0.001 0.001" /> 
+  </body>
+  <body name="sphere2" pos="0.5502747  0.34330838 0.7358423" quat="1 0 0 0" >
+      <geom type="sphere" mass="0.4" size="0.18" rgba="1 1 0 0.5" group="1"/>
+      <inertial pos="0 0 0" mass="0.2" diaginertia="0.001 0.001 0.001" /> 
+  </body>
+  <body name="sphere3" pos="0.95268875 -0.28050018  0.51556448" quat="1 0 0 0" >
+      <geom type="sphere" mass="0.4" size="0.18" rgba="1 0 1 0.5" group="1"/>
+      <inertial pos="0 0 0" mass="0.2" diaginertia="0.001 0.001 0.001" /> 
+  </body>
+
+  <body name="sphere4" pos="0.78704419 0.88009703 0.74686774" quat="1 0 0 0" >
+      <geom type="sphere" mass="0.4" size="0.18" rgba="1 0 1 0.5" group="1"/>
+      <inertial pos="0 0 0" mass="0.2" diaginertia="0.001 0.001 0.001" /> 
+  </body>
+
+
+
+  <body name="test" pos="0.1 0.50321585 0.1" quat="1 0 0 0" mocap="true">
+      <geom type="sphere" mass="0.4" size="0.18" rgba="1 0 0 0.5" group="1"/>
+      <inertial pos="0 0 0" mass="0.2" diaginertia="0.001 0.001 0.001" /> 
+  </body>
+
+
+   
+  </worldbody>
+  
+  <include file="ur5e.xml"/>
+</mujoco>
