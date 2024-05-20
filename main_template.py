@@ -59,13 +59,15 @@ def follow_trajectory(sim, traj, T=20, steps=500):
 
 
 if __name__ == "__main__":
-    sim=simulation()
+    sim=simulation("dense")
 
-    sim.obstacles=["sphere1","sphere2","sphere3","sphere4"]
 
+    if sim.map=="dense":
+        sim.obstacles=["sphere1","sphere2","sphere3","sphere4","cyl1","cyl2","cyl3","cyl4"]
+    
     # ----------------- Defining controllers for the simulator -----------------
-    OP_inverse_controller = OP_Space_controller(kd=150, kp_trans=4000,kp_ori=4000,lambdaTraj=0.9)
-    OP_vel_controller = OP_Space_Velocity_controller(kd=150, kp_trans=2000,kp_ori=2000,Kv=50,lambdaTraj=0.7,lambdaAvoid=0.05)
+    OP_inverse_controller = OP_Space_controller(kd=150, kp_trans=1000,kp_ori=1000,lambdaTraj=0.5)
+    OP_vel_controller = OP_Space_Velocity_controller(kd=150, kp_trans=1500,kp_ori=1500,Kv=50,lambdaTraj=0.6,lambdaAvoid=0.05)
     #OP_inverse_ZYZ_controller = OP_Space_inverse_ZYZ_controller(kp=10, kd=200)
     g = grav_compensation_controller()
     #joint_space_PDG = Joint_space_PDG_controller(kp=150, kd=50)
@@ -75,29 +77,35 @@ if __name__ == "__main__":
 
 
     # ----------------- Adding controllers to the simulator -----------------
-    #sim.controllers.append(OP_inverse_controller)
     sim.controllers.append(OP_vel_controller)
+    #sim.controllers.append(OP_inverse_controller)
     #sim.controllers.append(SDD_control)
     #sim.controllers.append(g)
     sim.start() 
 
     #time.sleep(10000)
-
     # ----------------- Trajectory Generation -----------------
 
-
+    q_snabel=[-np.pi*0.765, -np.pi/2.4, np.pi/2.4, -np.pi/2.2, np.pi,-np.pi/1.7,np.pi/1.7 , np.pi/2, -np.pi/2,0]
+    T_snabel=sim.robot.fkine(q_snabel)*sm.SE3.Tz(0.5)
     q_goal = [np.pi/2 , -np.pi/2.4, np.pi/2.4, -np.pi/2.2, np.pi,-np.pi/1.7,np.pi/1.7 , np.pi/2, -np.pi/2,0] 
     q_viapoint = [-np.pi/4, -np.pi/2.4, np.pi/2.4, -np.pi/2.2, np.pi,-np.pi/1.7,np.pi/1.7 , np.pi/2, -np.pi/2,0] 
-
+    
     steps=[200,200,200]
-    T=[5,5,6,3,3]
+    T=[6,6,6,3,3]
     #viapoints=[sim.robot.fkine(sim.q0)*sm.SE3.RPY(0,0,np.pi/2)] #zyx rot order
     #viapoints.append(viapoints[0]*sm.SE3.RPY(0,np.pi/2,0)) #zyx rot order
     #viapoints.append(viapoints[1]*sm.SE3.RPY(np.pi/2,0,0)) #zyx rot order
-    
-    viapoints=[sim.robot.fkine(q_goal)]
-    viapoints.append(sim.robot.fkine(q_viapoint))
-     #viapoints.append(sim.robot.fkine(q_viapoint)*sm.SE3.RPY(0,0,np.pi/2)) #zyx rot order
+    #viapoints=[T_snabel]
+    if sim.map=="dense":
+        viapoints=[sim.robot.fkine(q_goal)]
+        viapoints.append(sim.robot.fkine(q_viapoint))
+        viapoints.append(T_snabel)
+    else:
+        viapoints=[sim.robot.fkine(q_goal)]
+        #viapoints.append(sim.robot.fkine(q_goal)*sm.SE3.Tz(0.5)*sm.SE3.RPY(np.pi/2,0,0))
+        viapoints.append(sim.robot.fkine(q_viapoint))
+    #viapoints.append(sim.robot.fkine(q_viapoint)*sm.SE3.RPY(0,0,np.pi/2)) #zyx rot order
 
     time.sleep(3)
 
@@ -134,7 +142,7 @@ if __name__ == "__main__":
             #print(sim.xref[:3])
             time.sleep(T[j]/steps[j])
      
-        time.sleep(2)
+        time.sleep(4)
 
 
     time.sleep(1000)
