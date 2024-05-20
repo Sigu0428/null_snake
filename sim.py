@@ -20,7 +20,7 @@ from ctypes import c_int, addressof
 
 class simulation:
 
-  def __init__(self):
+  def __init__(self,map):
     '''
     This initizalizes the simulation object. 
     The initialization consist of setting the following parameters:
@@ -58,13 +58,17 @@ class simulation:
       - self.nullspace_controllers: the list of all controllers for the null space task
     '''
 
+    if map=="dense":
 
-
-    self.m = mujoco.MjModel.from_xml_path('./Ur5_robot/Robot_scene.xml')
+      self.m = mujoco.MjModel.from_xml_path('./Ur5_robot/Robot_scene_dense.xml')
+    else:
+      self.m = mujoco.MjModel.from_xml_path('./Ur5_robot/Robot_scene.xml')
+    self.map=map
     self.d = mujoco.MjData(self.m)
     self.jointTorques = [0 ,0,0,0,0,0,0,0,0,0] #simulation reads these and sends to motors at every time step
     self.dt = 1/40 #control loop update rate
     self.robot_link_names = ["shoulder_link", "upper_arm_link", "forearm_link", "wrist_1_link", "ee_link1", "shoulder_link2", "upper_arm_link2", "forearm_link2", "wrist_1_link2", "wrist_2_link2", "wrist_3_link2", "ee_link2"]
+    #self.q0=  [-np.pi*0.765, -np.pi/2.4, np.pi/2.4, -np.pi/2.2, np.pi,-np.pi/1.7,np.pi/1.7 , np.pi/2, -np.pi/2,0]  # 0, -3*np.pi/4, np.pi/3, np.pi, 0, 0, np.pi/3 , 0, 0,0] #home pose
     self.q0=  [0 , -np.pi/2.4, np.pi/2.4, -np.pi/2.2, np.pi,-np.pi/1.7,np.pi/1.7 , np.pi/2, -np.pi/2,0]  # 0, -3*np.pi/4, np.pi/3, np.pi, 0, 0, np.pi/3 , 0, 0,0] #home pose
     self.dq0= [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
     self.mojo_internal_mutex = Lock()
@@ -268,6 +272,9 @@ class simulation:
         mujoco.mj_step1(self.m, self.d)
         self.mojo_internal_mutex.release()
 
+       # print((self.d.body("test").xpos,self.d.body("test").xquat))
+     
+
         self.control_loop()
 
         #joint torque application loop
@@ -287,9 +294,9 @@ class simulation:
 
         # Rudimentary time keeping, will drift relative to wall clock.
         time_until_next_step = self.m.opt.timestep - (time.time() - step_start)
-        if time_until_next_step > 0:
-          #time.sleep(time_until_next_step)
-          pass
+        #if time_until_next_step > 0:
+         #time.sleep(time_until_next_step)
+    
 
 
   def setJointTorques(self,torques): #set joint torque vector which is applied to simulation from next time step
