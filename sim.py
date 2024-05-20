@@ -14,7 +14,6 @@ from spatialmath.base import q2r, r2x, rotx, roty, rotz,tr2eul,tr2rt
 from scipy.spatial.transform import  Rotation
 from pprint import pprint
 import pickle
-from plot_robot_log import robot_plot
 import Controllers
 from mujoco import _functions
 from ctypes import c_int, addressof
@@ -97,6 +96,7 @@ class simulation:
     self.log_data_enabled = 1
     self.ee_desired_data = []
     self.ee_position_data = []
+    self.distance_to_obstacles = []
     self.log_u = []
     self.latest_u = np.zeros((10)).T
 
@@ -288,8 +288,8 @@ class simulation:
         # Rudimentary time keeping, will drift relative to wall clock.
         time_until_next_step = self.m.opt.timestep - (time.time() - step_start)
         if time_until_next_step > 0:
-          time.sleep(time_until_next_step)
-    
+          #time.sleep(time_until_next_step)
+          pass
 
 
   def setJointTorques(self,torques): #set joint torque vector which is applied to simulation from next time step
@@ -460,6 +460,7 @@ class simulation:
         self.log_robot_positions()
         self.log_desired_position()
         self.log_u.append(self.latest_u)
+        self.log_distance_to_obstacles()
 
       if time_elapsed > 1:
         self.save_data()
@@ -480,7 +481,16 @@ class simulation:
     x_ee[3:]=UnitQuaternion(sm.SE3(T_ee)).vec
     self.ee_position_data.append(x_ee)
 
-
+  def log_distance_to_obstacles(self):
+    distance_matrix = np.zeros((len(self.robot_link_names), len(self.obstacles)))
+    for i, ob in enumerate(self.obstacles):
+      o = self.getObjState(ob)
+      for j, joint in enumerate(self.robot_link_names):
+        pli = self.getObjState(joint)
+        dir = ((o - pli)/np.linalg.norm(o - pli))
+        dist = self.raycastAfterRobotGeometry(pli, dir)
+        distance_matrix[j, i] = dist
+    self.distance_to_obstacles.append(distance_matrix.copy())
 
   def log_desired_position(self):
     '''
@@ -506,6 +516,9 @@ class simulation:
     
     with open('robot_joint_torques.txt', 'wb') as f:
       pickle.dump(self.log_u, f)
+
+    with open('distances.txt', 'wb') as f:
+      pickle.dump(self.distance_to_obstacles, f)
 
 
 

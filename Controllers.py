@@ -39,7 +39,7 @@ class MaciejewskiEtAl_controller:
         Jo = None
         for ob in ["blockL01", "blockL02"]:
             o = sim.getObjState(ob)
-            for joint in ["wrist_1_link", "shoulder_link2", "forearm_link2"]:
+            for joint in ["wrist_1_link", "shoulder_link2", "forearm_link2", "wrist_2_link2"]:
                 pli = sim.getObjState(joint)
                 dir = ((o - pli)/np.linalg.norm(o - pli))
                 dist = sim.raycastAfterRobotGeometry(pli, dir)
@@ -285,9 +285,10 @@ class OP_Space_Velocity_controller:
         dxo = None
         d = math.inf
         Jo = None
+        smallets = None
         for ob in ["blockL01", "blockL02"]:
-            o = sim.getObjState(ob)
-            for joint in  ["shoulder_link2"]:# "wrist_1_link", "shoulder_link2", "forearm_link2"]:
+            for joint in ["wrist_1_link", "shoulder_link2", "forearm_link2", "wrist_2_link2"]: #
+                o = sim.getObjState(ob)
                 pli = sim.getObjState(joint)
                 dir = ((o - pli)/np.linalg.norm(o - pli))
                 dist = sim.raycastAfterRobotGeometry(pli, dir)
@@ -297,13 +298,15 @@ class OP_Space_Velocity_controller:
                     dxo = -dir
                     Jo = sim.getJointJacob(joint)
                     Jo = Jo[0:3, :]
-        thresh=0.3
+                    smallest = (ob, joint, d)
+        print(smallest)
+        thresh=0.1
         smoothing=10
         decay=10
 
-        an = lambda d: np.tanh(-smoothing*(d-thresh))
+        an = lambda d: (np.tanh(-smoothing*(d-thresh))+1)/2
         
-        ao = lambda d:  0.2*np.exp(-decay*d)/d
+        ao = lambda d:  0.1*np.exp(-decay*d)/d
 
         dampen=0.05
         Je_inv=Je.T@np.linalg.inv(Je@Je.T+(dampen**2)*np.eye(6))
