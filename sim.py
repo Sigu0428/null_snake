@@ -87,7 +87,7 @@ class simulation:
     self.tool_name="ee_link2"
     self.Tref=self.robot.fkine(self.qref)
     self.obstacle="blockL01"
-    self.obstacles = ['blockL01', 'blockL02']
+    self.obstacles = ['blockL01', 'test']
     self.refmutex=1
     self.xref=np.zeros(7)#xyz wv1v2v3
     self.dxref=np.zeros(7)#xyz wv1v2v3 
@@ -101,6 +101,7 @@ class simulation:
     self.ee_desired_data = []
     self.ee_position_data = []
     self.distance_to_obstacles = []
+    self.contact_points= []
     self.log_u = []
     self.latest_u = np.zeros((10)).T
 
@@ -272,8 +273,8 @@ class simulation:
         mujoco.mj_step1(self.m, self.d)
         self.mojo_internal_mutex.release()
 
-       # print((self.d.body("test").xpos,self.d.body("test").xquat))
-     
+       #print((self.d.body("test").xpos,self.d.body("test").xquat))
+        #print(self.d.ncon)
 
         self.control_loop()
 
@@ -493,11 +494,15 @@ class simulation:
     for i, ob in enumerate(self.obstacles):
       o = self.getObjState(ob)
       for j, joint in enumerate(self.robot_link_names):
-        pli = self.getObjState(joint)
-        dir = ((o - pli)/np.linalg.norm(o - pli))
-        dist = self.raycastAfterRobotGeometry(pli, dir)
+        dist = -1 
+        while dist == -1 :
+          pli = self.getObjState(joint)
+          dir = ((o - pli)/np.linalg.norm(o - pli))
+          dist = self.raycastAfterRobotGeometry(pli, dir)
+        
         distance_matrix[j, i] = dist
     self.distance_to_obstacles.append(distance_matrix.copy())
+    self.contact_points.append(self.d.ncon)
 
   def log_desired_position(self):
     '''
@@ -526,7 +531,9 @@ class simulation:
 
     with open('distances.txt', 'wb') as f:
       pickle.dump(self.distance_to_obstacles, f)
-
+    
+    with open('contacts.txt', 'wb') as f:
+      pickle.dump(self.contact_points, f)
 
 
   def get_trans(self, T_ee):
@@ -721,7 +728,7 @@ class simulation:
     return dist
   
   def raycastAfterRobotGeometry(self, pos, dir):
-    dist = self.raycast(pos, dir, mask = np.array([0, 0, 1, 0, 0, 0]).astype(np.uint8))
+    dist = self.raycast(pos, dir, mask = np.array([0, 0, 0, 1, 0, 0]).astype(np.uint8))
     if dist < 0:
       return dist
     dist = self.raycast(pos + dir*dist, dir, mask = np.array([1, 1, 0, 0, 0, 0]).astype(np.uint8))

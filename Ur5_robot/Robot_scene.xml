@@ -27,14 +27,14 @@
     <geom name="floor" size="0 0 0.05" type="plane" material="groundplane"/>
 
   <body name="blockL01" pos="-0.2 0.65 0.3" quat="1 0 0 0">
-      <joint name="Obj1" type="free"/>
-      <geom type="sphere" mass="0.4" size="0.3" rgba="0 1 0 0.5" group="1"/>
+
+      <geom type="sphere" mass="0.4" size="0.2" rgba="0 1 0 0.5" group="1"/>
       <inertial pos="0 0 0" mass="0.2" diaginertia="0.001 0.001 0.001" /> 
   </body>
 
-  <body name="blockL02" pos="0.45 -0.6 0.30" quat="1 0 0 0">
-      <joint name="Obj2" type="free"/>
-       <geom type="sphere" mass="0.4" size="0.3" rgba="1 0 0 0.5" group="1"/>
+  <body name="test" pos="0.51218776 0.27961369 0.89201046" quat="1 0 0 0" mocap="true">
+
+       <geom type="sphere" mass="0.4" size="0.2" rgba="1 0 0 0.5" group="1"/>
       <inertial pos="0 0 0" mass="0.2" diaginertia="0.001 0.001 0.001" /> 
   </body>
 

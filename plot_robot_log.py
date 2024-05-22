@@ -15,6 +15,7 @@ class robot_plot:
         self.ee_pos = pickle.load(open("robot_end_effector_position.txt", "rb"))
         self.ee_des = pickle.load(open("robot_end_effector_position_desired.txt", "rb"))
         self.distances = pickle.load(open("distances.txt", "rb"))
+        self.contacts = pickle.load(open("contacts.txt", "rb"))
 
     
     def get_translational(self, data):
@@ -105,15 +106,26 @@ class robot_plot:
         # (timestep, link, obstacle)
         sim=simulation("aylmao")
         dist_mat = np.array(self.distances)
-        dist_mat = np.clip(dist_mat, a_min=0, a_max=None)
+        #dist_mat = np.clip(dist_mat, a_min=0, a_max=None)
         dist_mat = np.min(dist_mat, axis=2)
-        print(dist_mat.shape)
-        ax1[2].plot(dist_mat[:, sim.robot_link_names.index("shoulder_link2")], label='translation', color='red')
+        #print(dist_mat.shape)
+        ax1[2].plot(dist_mat[:,[5]], label='translation', color='red')
         dist_mat = np.min(dist_mat, axis=1)
-        ax1[2].plot(dist_mat[:], label='translation', color='red')
+   
+    
+
+        ax1[2].plot(dist_mat[:], label='translation', color='blue')
+        ax1[2].axhline(0.24,color = "orange", linestyle = "--", linewidth=1.0)
+        #skibidi toilet
+        ohio_rizz=np.reshape(np.array(self.contacts),dist_mat.shape)
+        brrr = np.arange(dist_mat.shape[0])
+
+
+        
+        ax1[2].scatter(brrr[np.where(ohio_rizz>0)],dist_mat[np.where(ohio_rizz>0)],color="red")
 
         ax1[2].set_title('distance to obstacle')
-        ax1[2].legend([])
+        ax1[2].legend(["Upper shoulder distance", "Minimum distance","Tanh Threshold","Collisions"])
         
         plt.show()
 
