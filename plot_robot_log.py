@@ -102,19 +102,6 @@ class robot_plot:
         ax1[1].set_title('orientation')
         ax1[1].legend(["s","s_d", "v1", "v1_d", "v2","v2_d", "v3","v3_d"])
         
-        # (timestep, link, obstacle)
-        dist_mat = np.array(self.distances)
-        #dist_mat = np.clip(dist_mat, a_min=0, a_max=None)
-        dist_mat = np.min(dist_mat, axis=2)
-        #print(dist_mat.shape)
-        ax1[2].plot(dist_mat[:,[5,8]], label='translation', color='red')
-        dist_mat = np.min(dist_mat, axis=1)
-        ax1[2].plot(dist_mat[:], label='translation', color='blue')
-
-
-        ax1[2].set_title('distance to obstacle')
-        ax1[2].legend(["Upper shoulder distance", "Minimum distance"])
-        
         plt.show()
 
 
