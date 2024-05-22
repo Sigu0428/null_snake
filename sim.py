@@ -9,7 +9,7 @@ import time
 import spatialmath as sm
 import numpy as np
 import matplotlib.pyplot as plt
-from spatialmath import UnitQuaternion
+from spatialmath import UnitQuaternion,Quaternion
 from spatialmath.base import q2r, r2x, rotx, roty, rotz,tr2eul,tr2rt
 from scipy.spatial.transform import  Rotation
 from pprint import pprint
@@ -788,13 +788,11 @@ class simulation:
   
   def raycastAfterRobotGeometry(self, pos, dir):
     dist = self.raycast(pos, dir, mask = np.array([0, 0, 0, 1, 0, 0]).astype(np.uint8))
-    if dist < 0:
-      return dist
     dist = self.raycast(pos + dir*dist, dir, mask = np.array([1, 1, 0, 0, 0, 0]).astype(np.uint8))
-    return dist
+    return max(dist, 0.01)
 
   def repulsion_force_func(self, x, magnetude, decayrate):
-    return (magnetude/x)*np.exp(-decayrate*x)
+      return (magnetude/x)*np.tanh(-100*(x-decayrate))
   
 
   def quatpower(self,q,t):
@@ -802,5 +800,5 @@ class simulation:
 
     qt=(qu.log()*t).exp()
 
-    return UnitQuaternion(qt)
+    return Quaternion(qt)
   

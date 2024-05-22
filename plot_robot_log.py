@@ -109,7 +109,7 @@ class robot_plot:
         #dist_mat = np.clip(dist_mat, a_min=0, a_max=None)
         dist_mat = np.min(dist_mat, axis=2)
         #print(dist_mat.shape)
-        ax1[2].plot(dist_mat[:,[5]], label='translation', color='red')
+        ax1[2].plot(np.min(dist_mat[:,[3,5]],axis=1), label='translation', color='red')
         dist_mat = np.min(dist_mat, axis=1)
    
     
@@ -125,7 +125,7 @@ class robot_plot:
         ax1[2].scatter(brrr[np.where(ohio_rizz>0)],dist_mat[np.where(ohio_rizz>0)],color="red")
 
         ax1[2].set_title('distance to obstacle')
-        ax1[2].legend(["Upper shoulder distance", "Minimum distance","Tanh Threshold","Collisions"])
+        ax1[2].legend(["Minimum distance (main task)", "Minimum distance (all joints)","Tanh Threshold","Collisions"])
         
         plt.show()
 
