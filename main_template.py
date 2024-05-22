@@ -71,7 +71,7 @@ if __name__ == "__main__":
     #OP_inverse_ZYZ_controller = OP_Space_inverse_ZYZ_controller(kp=10, kd=200)
     g = grav_compensation_controller()
     #joint_space_PDG = Joint_space_PDG_controller(kp=150, kd=50)
-    SDD_control = SDD_controller(k=0.5)
+    #SDD_control = SDD_controller(k=0.5)
     
 
 
@@ -88,7 +88,6 @@ if __name__ == "__main__":
 
     move_forward = sim.robot.fkine(sim.q0)
     move_forward.t[0] += 2
-    print(move_forward.t)
     viapoints=[move_forward]
     steps=[200,200,200]
     T=[6,6,6,3,3]
@@ -101,7 +100,7 @@ if __name__ == "__main__":
 
     #viapoints.append(sim.robot.fkine(q_viapoint)*sm.SE3.RPY(0,0,np.pi/2)) #zyx rot order
 
-    time.sleep(3)
+    time.sleep(1)
 
     for j in range(len(viapoints)):
         if j==0:
