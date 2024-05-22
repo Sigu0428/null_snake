@@ -287,12 +287,13 @@ class OP_Space_Velocity_controller:
         d = math.inf
         Jo = None
         links=sim.robot_link_names
-        targets=[links[5]]
+        targets=["wrist_3_link2"]
+
         for ob in sim.obstacles:
             o = sim.getObjState(ob)
             for joint in targets: #[ "wrist_1_link", "shoulder_link2", "forearm_link2","wrist_2_link2"]:#["shoulder_link2"]:# "wrist_1_link", "shoulder_link2", "forearm_link2"]:
                 pli = sim.getObjState(joint)
-                dir = ((o - pli)/np.linalg.norm(o - pli))
+                dir = np.array([1,0,0])
                 dist = sim.raycastAfterRobotGeometry(pli, dir)
                 if dist < 0: dist = math.inf
                 if dist < d:
@@ -302,6 +303,8 @@ class OP_Space_Velocity_controller:
                     Jo = Jo[0:3, :]
 
            
+
+
         for joint in targets: #[ "wrist_1_link", "shoulder_link2", "forearm_link2","wrist_2_link2"]:#["shoulder_link2"]:# "wrist_1_link", "shoulder_link2", "forearm_link2"]:
             pli = sim.getObjState(joint)
             dir = np.array([0,0,-1])

@@ -60,10 +60,16 @@ class simulation:
     '''
 
     if map=="dense":
-
       self.m = mujoco.MjModel.from_xml_path('./Ur5_robot/Robot_scene_dense.xml')
+      self.obstacles=["sphere1","sphere2","sphere3","sphere4","cyl1","cyl2","cyl3","cyl4"]
+        
+    elif (map == "wall"):
+      self.m = mujoco.MjModel.from_xml_path('./Ur5_robot/Robot_scene_wall.xml')
+      self.obstacles=["wall"]
     else:
       self.m = mujoco.MjModel.from_xml_path('./Ur5_robot/Robot_scene.xml')
+      self.obstacles = ['blockL01', 'blockL02']
+
     self.map=map
     self.d = mujoco.MjData(self.m)
     self.jointTorques = [0 ,0,0,0,0,0,0,0,0,0] #simulation reads these and sends to motors at every time step
@@ -71,6 +77,9 @@ class simulation:
     self.robot_link_names = ["shoulder_link", "upper_arm_link", "forearm_link", "wrist_1_link", "ee_link1", "shoulder_link2", "upper_arm_link2", "forearm_link2", "wrist_1_link2", "wrist_2_link2", "wrist_3_link2", "ee_link2"]
     #self.q0=  [-np.pi*0.765, -np.pi/2.4, np.pi/2.4, -np.pi/2.2, np.pi,-np.pi/1.7,np.pi/1.7 , np.pi/2, -np.pi/2,0]  # 0, -3*np.pi/4, np.pi/3, np.pi, 0, 0, np.pi/3 , 0, 0,0] #home pose
     self.q0=  [0 , -np.pi/2.4, np.pi/2.4, -np.pi/2.2, np.pi,-np.pi/1.7,np.pi/1.7 , np.pi/2, -np.pi/2,0]  # 0, -3*np.pi/4, np.pi/3, np.pi, 0, 0, np.pi/3 , 0, 0,0] #home pose
+
+    
+    
     self.dq0= [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
     self.mojo_internal_mutex = Lock()
     self.refLock = Lock()
@@ -88,7 +97,7 @@ class simulation:
     self.tool_name="ee_link2"
     self.Tref=self.robot.fkine(self.qref)
     self.obstacle="blockL01"
-    self.obstacles = ['blockL01', 'blockL02']
+    
     self.refmutex=1
     self.xref=np.zeros(7)#xyz wv1v2v3
     self.dxref=np.zeros(7)#xyz wv1v2v3 
@@ -292,10 +301,7 @@ class simulation:
 
         viewer.sync()
 
-        # Rudimentary time keeping, will drift relative to wall clock.
-        time_until_next_step = self.m.opt.timestep - (time.time() - step_start)
-        #if time_until_next_step > 0:
-         #time.sleep(time_until_next_step)
+
     
 
 
