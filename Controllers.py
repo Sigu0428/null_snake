@@ -310,7 +310,7 @@ class OP_Space_Velocity_controller:
 
         an = lambda d: (np.tanh(-smoothing*(d-thresh))+1)/2
         
-        ao = lambda d:  0.1*np.exp(-decay*d)/d * 10
+        ao = lambda d:  0.1*np.exp(-decay*d)/d * 15
 
         dampen=self.lambdaAvoid
         Je_inv=Je.T@np.linalg.inv(Je@Je.T+(dampen**2)*np.eye(6))

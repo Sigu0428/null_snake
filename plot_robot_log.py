@@ -5,7 +5,7 @@ from spatialmath import UnitQuaternion
 from spatialmath.base import q2r, r2x,tr2rt
 import spatialmath as sm
 import numpy as np
-
+from sim import simulation
 
 class robot_plot:
     def __init__(self, robot_name):
@@ -101,6 +101,20 @@ class robot_plot:
         ax1[1].plot(rot_data_des_np[:,3], label='translation desired',linestyle='--', linewidth=1.0, color='purple')
         ax1[1].set_title('orientation')
         ax1[1].legend(["s","s_d", "v1", "v1_d", "v2","v2_d", "v3","v3_d"])
+        
+        # (timestep, link, obstacle)
+        sim=simulation("aylmao")
+        dist_mat = np.array(self.distances)
+        dist_mat = np.clip(dist_mat, a_min=0, a_max=None)
+        dist_mat = np.min(dist_mat, axis=2)
+        print(dist_mat.shape)
+        ax1[2].plot(dist_mat[:, sim.robot_link_names.index("wrist_3_link2")], label='translation', color='red')
+        
+        # Plot a zero line
+        ax1[2].axhline(y=0, color='k')
+        dist_mat = np.min(dist_mat, axis=1)
+        ax1[2].set_title('distance to obstacle')
+        ax1[2].legend([])
         
         plt.show()
 
