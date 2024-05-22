@@ -6,6 +6,7 @@ from spatialmath.base import q2r, r2x,tr2rt
 import spatialmath as sm
 import numpy as np
 
+
 class robot_plot:
     def __init__(self, robot_name):
         self.robot_name = robot_name
@@ -13,6 +14,7 @@ class robot_plot:
     def get_data(self):
         self.ee_pos = pickle.load(open("robot_end_effector_position.txt", "rb"))
         self.ee_des = pickle.load(open("robot_end_effector_position_desired.txt", "rb"))
+        self.distances = pickle.load(open("distances.txt", "rb"))
 
     
     def get_translational(self, data):
@@ -60,7 +62,7 @@ class robot_plot:
         
         #normalize the torque data
 
-        fig, (ax1) = plt.subplots(2, 1)
+        fig, (ax1) = plt.subplots(3, 1)
         trans_data_np = np.asarray(trans_data)
         trans_data_des_np = np.asarray(trans_data_des)
         rot_data_np = np.asarray(rot_data)
@@ -99,6 +101,19 @@ class robot_plot:
         ax1[1].plot(rot_data_des_np[:,3], label='translation desired',linestyle='--', linewidth=1.0, color='purple')
         ax1[1].set_title('orientation')
         ax1[1].legend(["s","s_d", "v1", "v1_d", "v2","v2_d", "v3","v3_d"])
+        
+        # (timestep, link, obstacle)
+        dist_mat = np.array(self.distances)
+        #dist_mat = np.clip(dist_mat, a_min=0, a_max=None)
+        dist_mat = np.min(dist_mat, axis=2)
+        #print(dist_mat.shape)
+        ax1[2].plot(dist_mat[:,[5,8]], label='translation', color='red')
+        dist_mat = np.min(dist_mat, axis=1)
+        ax1[2].plot(dist_mat[:], label='translation', color='blue')
+
+
+        ax1[2].set_title('distance to obstacle')
+        ax1[2].legend(["Upper shoulder distance", "Minimum distance"])
         
         plt.show()
 
