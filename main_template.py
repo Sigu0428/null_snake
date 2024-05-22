@@ -59,17 +59,17 @@ def follow_trajectory(sim, traj, T=20, steps=500):
 
 
 if __name__ == "__main__":
-    sim=simulation("dense")
+    sim=simulation("dens")
 
 
     if sim.map=="dense":
         sim.obstacles=["sphere1","sphere2","sphere3","sphere4","cyl1","cyl2","cyl3","cyl4"]
     
     # ----------------- Defining controllers for the simulator -----------------
-    OP_inverse_controller = OP_Space_controller(kd=150, kp_trans=1000,kp_ori=1000,lambdaTraj=0.5)
-    OP_vel_controller = OP_Space_Velocity_controller(kd=150, kp_trans=1500,kp_ori=1500,Kv=50,lambdaTraj=0.6,lambdaAvoid=0.05)
+    #OP_inverse_controller = OP_Space_controller(kd=150, kp_trans=1000,kp_ori=1000,lambdaTraj=0.5) 
+    OP_vel_controller = OP_Space_Velocity_controller(kd_trans=150,kd_ori=100, kp_trans=1000,kp_ori=1000,Kv=50,lambdaTraj=0.6,lambdaAvoid=0.05) #0.6 
     #OP_inverse_ZYZ_controller = OP_Space_inverse_ZYZ_controller(kp=10, kd=200)
-    g = grav_compensation_controller()
+   # g = grav_compensation_controller()
     #joint_space_PDG = Joint_space_PDG_controller(kp=150, kd=50)
     SDD_control = SDD_controller(k=0.5)
     
@@ -90,9 +90,10 @@ if __name__ == "__main__":
     T_snabel=sim.robot.fkine(q_snabel)*sm.SE3.Tz(0.5)
     q_goal = [np.pi/2 , -np.pi/2.4, np.pi/2.4, -np.pi/2.2, np.pi,-np.pi/1.7,np.pi/1.7 , np.pi/2, -np.pi/2,0] 
     q_viapoint = [-np.pi/4, -np.pi/2.4, np.pi/2.4, -np.pi/2.2, np.pi,-np.pi/1.7,np.pi/1.7 , np.pi/2, -np.pi/2,0] 
-    
-    steps=[200,200,200]
-    T=[6,6,6,3,3]
+    q_back=np.copy(sim.q0)
+    q_back[0]+=np.pi
+    steps=[100,100,500]
+    T=[5,5,5,3,3]
     #viapoints=[sim.robot.fkine(sim.q0)*sm.SE3.RPY(0,0,np.pi/2)] #zyx rot order
     #viapoints.append(viapoints[0]*sm.SE3.RPY(0,np.pi/2,0)) #zyx rot order
     #viapoints.append(viapoints[1]*sm.SE3.RPY(np.pi/2,0,0)) #zyx rot order
@@ -108,7 +109,7 @@ if __name__ == "__main__":
     #viapoints.append(sim.robot.fkine(q_viapoint)*sm.SE3.RPY(0,0,np.pi/2)) #zyx rot order
 
     time.sleep(3)
-
+    
     for j in range(len(viapoints)):
         if j==0:
             T_start=sim.robot.fkine(sim.getJointAngles())
@@ -127,12 +128,17 @@ if __name__ == "__main__":
         #slerp velocity and acceleration for quats:
         q0=UnitQuaternion(npTrj[3:,0])
         q1=UnitQuaternion(npTrj[3:,-1])
-        for t in range(len(Trj)): 
-            # 0<=t<=1
-            Tvel[3:,t]=q0*sim.quatpower((q0.conj()*q1),((t+1)/steps[j]))*UnitQuaternion(q0.conj()*q1).log() #t+1 to avoid q^0
-            #second derivative (homebrewed)
-            Tacc[3:,t]=q0*sim.quatpower((q0.conj()*q1),((t+1)/steps[j]))*UnitQuaternion(q0.conj()*q1).log()*UnitQuaternion(q0.conj()*q1).log() #t+1 to avoid q^0
+        t_mod=rtb.trapezoidal(0,1,steps[j]+1).s #trap scalar profile in amount of steps
 
+     
+        for step in range(len(Trj)): 
+            # 0<=t<=1
+            Tvel[3:,t]=q0*sim.quatpower((q0.conj()*q1),t_mod[step+1])*UnitQuaternion(q0.conj()*q1).log() #t+1 to avoid q^0
+            #print(Tvel[3:,t])
+            #second derivative (homebrewed)
+            Tacc[3:,t]=q0*sim.quatpower((q0.conj()*q1),t_mod[step+1])*UnitQuaternion(q0.conj()*q1).log()*UnitQuaternion(q0.conj()*q1).log() #t+1 to avoid q^0
+
+        #print(Tvel[3:,:])
         for i in range(steps[j]):
             with sim.refLock:
                 sim.xref=npTrj[:,i]
@@ -141,7 +147,11 @@ if __name__ == "__main__":
                 
             #print(sim.xref[:3])
             time.sleep(T[j]/steps[j])
-     
+        with sim.refLock:
+
+            sim.dxref=np.zeros(7)
+            sim.ddxref=np.zeros(7)
+                    
         time.sleep(4)
 
 

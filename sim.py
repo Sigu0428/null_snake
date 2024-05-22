@@ -410,7 +410,66 @@ class simulation:
       return Je,Je_dot,JA,JA_dot
 
 
-  
+  def getGeometricJacs(self):
+      
+      h=1e-8
+      #get geometric jacobian from mujoco
+      jac=np.zeros((6,self.m.nv))
+      id=self.m.body("ee_link2").id
+      mujoco.mj_jacBody(self.m, self.d, jac[:3], jac[3:], id)
+      Je=jac[:,-10:] #CHANGES IF DIFFERENT BODIES ADDED
+
+      #get H(ee)
+      obj_q = self.d.body(self.tool_name).xquat
+      q_ee=UnitQuaternion(obj_q).vec #s,v1,v2,v3
+
+      xi0=q_ee[0]; xi1=q_ee[1];xi2=q_ee[2];xi3=q_ee[3] #xi0 = s, ...
+
+      H_pre=np.array([[-xi1,xi0,-xi3,xi2],
+                  [-xi2,xi3,xi0,-xi1],
+                  [-xi3,-xi2,xi1,xi0]])
+
+
+      #integrate joint angles for small timestep h
+      q=np.copy(self.d.qpos)
+      dq=np.copy(self.d.qvel)
+      q_init=np.copy(q)
+      mujoco.mj_integratePos(self.m, q, dq, h)
+      
+      #update qpos with small step
+      self.d.qpos=q
+
+      #update internal model (kinematics etc) with new vals
+      mujoco.mj_kinematics(self.m,self.d)
+      mujoco.mj_comPos(self.m,self.d)
+
+      #get next jacobian
+      jach=np.zeros((6,self.m.nv))
+      mujoco.mj_jacBody(self.m, self.d, jach[:3], jach[3:], id)
+      Jeh=jach[:,-10:] #CHANGES IF DIFFERENT BODIES ADDEDs
+
+      #get H(ee)
+      obj_q = self.d.body(self.tool_name).xquat
+      q_ee=UnitQuaternion(obj_q).vec #s,v1,v2,v3
+
+      xi0=q_ee[0]; xi1=q_ee[1];xi2=q_ee[2];xi3=q_ee[3] #xi0 = s, ...
+
+      H_post=np.array([[-xi1,xi0,-xi3,xi2],
+                  [-xi2,xi3,xi0,-xi1],
+                  [-xi3,-xi2,xi1,xi0]])
+      
+      #finite differences
+      Je_dot=(Jeh-Je)/h 
+      H_dot=(H_post-H_pre)/h
+
+      #reset q back to beginning
+      self.d.qpos=q_init
+      #update internal model (kinematics etc) with new vals
+      mujoco.mj_kinematics(self.m,self.d)
+      mujoco.mj_comPos(self.m,self.d)
+
+      return Je,Je_dot,H_dot
+
   def control_loop(self, debug=False):
     '''
     This function sets the torque values u based on all appended main and secondary task controllers.
