@@ -103,7 +103,7 @@ class robot_plot:
         ax1[1].legend(["s","s_d", "v1", "v1_d", "v2","v2_d", "v3","v3_d"])
         
         # (timestep, link, obstacle)
-        sim=simulation()
+        sim=simulation("aylmao")
         dist_mat = np.array(self.distances)
         dist_mat = np.clip(dist_mat, a_min=0, a_max=None)
         dist_mat = np.min(dist_mat, axis=2)

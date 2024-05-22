@@ -287,8 +287,11 @@ class OP_Space_Velocity_controller:
         d = math.inf
         Jo = None
         smallets = None
-        for ob in ["blockL01", "blockL02"]:
-            for joint in ["wrist_1_link", "shoulder_link2", "forearm_link2", "wrist_2_link2"]: #
+        links = sim.robot_link_names
+        targets = ["wrist_1_link", "shoulder_link2", "forearm_link2", "wrist_2_link2"]
+        targets = links
+        for ob in sim.obstacles:
+            for joint in targets: #
                 o = sim.getObjState(ob)
                 pli = sim.getObjState(joint)
                 dir = ((o - pli)/np.linalg.norm(o - pli))
@@ -301,7 +304,7 @@ class OP_Space_Velocity_controller:
                     Jo = Jo[0:3, :]
                     smallest = (ob, joint, d)
         #print(smallest)
-           
+        
         for joint in targets: #[ "wrist_1_link", "shoulder_link2", "forearm_link2","wrist_2_link2"]:#["shoulder_link2"]:# "wrist_1_link", "shoulder_link2", "forearm_link2"]:
             pli = sim.getObjState(joint)
             dir = np.array([0,0,-1])
@@ -312,9 +315,10 @@ class OP_Space_Velocity_controller:
                 dxo = -dir
                 Jo = sim.getJointJacob(joint)
                 Jo = Jo[0:3, :]
-        thresh=0.3
+        
+        thresh=0.1
         smoothing=10
-        decay=10
+        decay=1
 
         an = lambda d: (np.tanh(-smoothing*(d-thresh))+1)/2
         
