@@ -318,7 +318,7 @@ class OP_Space_Velocity_controller:
         Jo = None
         smallets = None
         links = sim.robot_link_names
-        targets = [links[3],links[7],links[5],links[10]] 
+        targets = [links[3],links[7],links[5],links[10]]  #[links[3],links[7],links[5],links[10]] 
 
         for ob in sim.obstacles:
             for joint in targets: #
@@ -346,9 +346,9 @@ class OP_Space_Velocity_controller:
                 Jo = sim.getJointJacob(joint)
                 Jo = Jo[0:3, :]
         
-        thresh=0.13 #
-        smoothing=10 #8
-        decay=18 #5
+        thresh=0.15 #0.15
+        smoothing=10 #10
+        decay=20 #20
 
         an = lambda d: (np.tanh(-smoothing*(d-thresh))+1)/2
         

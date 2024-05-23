@@ -104,7 +104,7 @@ class simulation:
     self.contact_points= []
     self.log_u = []
     self.latest_u = np.zeros((10)).T
-
+    self.time_log=[]
     # The list of controllers used
     self.controllers = [] # List of all controllers to be used in the simulation
 
@@ -517,7 +517,7 @@ class simulation:
     This function logs the data for the robot positions and the desired robot positions.
     The data is logged into the object self.robot_data_plot.
     '''
-
+    log_start=time.time()
     time_start = time.time()
     while True:
       time_elapsed = time.time() - time_start
@@ -528,7 +528,7 @@ class simulation:
         self.log_desired_position()
         self.log_u.append(self.latest_u)
         self.log_distance_to_obstacles()
-
+        self.log_time(time.time()-log_start)
       if time_elapsed > 1:
         self.save_data()
         time_start = time.time()
@@ -572,6 +572,11 @@ class simulation:
 
     self.ee_desired_data.append(self.xref)
 
+  def log_time(self,time):
+      self.time_log.append(time)
+
+
+
 
 
 
@@ -594,6 +599,8 @@ class simulation:
     with open('contacts.txt', 'wb') as f:
       pickle.dump(self.contact_points, f)
 
+    with open('timelist.txt', 'wb') as f:
+      pickle.dump(self.time_log, f)
 
   def get_trans(self, T_ee):
     '''
