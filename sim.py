@@ -73,7 +73,7 @@ class simulation:
     self.dq0= [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
     self.mojo_internal_mutex = Lock()
     self.refLock = Lock()
-
+    self.simtime=0
 
     # Peter corke robot model initialization
     self.initialize_robot()
@@ -229,6 +229,7 @@ class simulation:
 
         viewer.sync()
 
+        
         # Rudimentary time keeping, will drift relative to wall clock.
         time_until_next_step = self.m.opt.timestep - (time.time() - step_start)
         if time_until_next_step > 0:
@@ -292,7 +293,8 @@ class simulation:
         self.mojo_internal_mutex.release()
 
         viewer.sync()
-
+        self.simtime+=self.m.opt.timestep
+  
         # Rudimentary time keeping, will drift relative to wall clock.
         time_until_next_step = self.m.opt.timestep - (time.time() - step_start)
         #if time_until_next_step > 0:
@@ -528,7 +530,7 @@ class simulation:
         self.log_desired_position()
         self.log_u.append(self.latest_u)
         self.log_distance_to_obstacles()
-        self.log_time(time.time()-log_start)
+        self.log_time(self.simtime)
       if time_elapsed > 1:
         self.save_data()
         time_start = time.time()
@@ -807,5 +809,5 @@ class simulation:
 
     qt=(qu.log()*t).exp()
 
-    return Quaternion(qt)
+    return UnitQuaternion(qt)
   

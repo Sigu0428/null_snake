@@ -108,7 +108,7 @@ class robot_plot:
         ax1[1].legend(["s","s_d", "v1", "v1_d", "v2","v2_d", "v3","v3_d"])
         
         # (timestep, link, obstacle)
-
+        
         dist_mat = np.array(self.distances)
         #dist_mat = np.clip(dist_mat, a_min=0, a_max=None)
         dist_mat = np.min(dist_mat, axis=2)
@@ -119,7 +119,7 @@ class robot_plot:
     
 
         ax1[2].plot(self.times,dist_mat[:], label='translation', color='blue')
-        ax1[2].axhline(0.14,color = "orange", linestyle = "--", linewidth=1.0)
+        ax1[2].axhline(0.35,color = "orange", linestyle = "--", linewidth=1.0)
         #skibidi toilet
         ohio_rizz=np.reshape(np.array(self.contacts),dist_mat.shape)
         brrr = np.arange(dist_mat.shape[0])
@@ -130,7 +130,7 @@ class robot_plot:
         ax1[2].set_xlabel("time [s]")
         ax1[2].set_ylabel("[m]")
         ax1[2].set_title('distance to obstacle')
-        ax1[2].legend(["Minimum distance (main task)", "Minimum distance (all joints)","Tanh Threshold","Collisions"])
+        ax1[2].legend(["Minimum distance (Velocity Controlled)", "Minimum distance (all joints)","Tanh Threshold","Collisions"])
         
         plt.show()
 

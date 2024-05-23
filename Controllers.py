@@ -164,9 +164,11 @@ class OP_Space_controller:
         R_e=sm.SO3(T_ee[:3,:3])
         R_ed=np.transpose(np.array(R_e))@np.array(R_d) #(24)
         q_de=UnitQuaternion(R_ed) #"extracted"
+  
+  
         epsi_e_de=q_de.v
         epsi_de=np.array(R_e)@epsi_e_de #(34)
-
+  
         x_tilde[3:]= epsi_de
 
         # velocity error 
@@ -189,6 +191,9 @@ class OP_Space_controller:
         #notes 2016: (2.98)
 
         omega_d=2*H@dxref[3:]
+
+
+        #print(np.linalg.norm(omega_d),dxref[3:])
         Delta_omega_e_d=omega_d-omega_e
         x_tilde_dot[3:]=Delta_omega_e_d # (33)
         
@@ -346,7 +351,7 @@ class OP_Space_Velocity_controller:
                 Jo = sim.getJointJacob(joint)
                 Jo = Jo[0:3, :]
         
-        thresh=0.15 #0.15
+        thresh=0.15 #0.15, simple: 0.35
         smoothing=10 #10
         decay=20 #20
 
@@ -478,9 +483,10 @@ class SDD_controller:
     This class uses a gravity compensation inspired controller for the robot, where SDD is Sum of directional derivatives.
     '''
 
-    def __init__(self, k):
+    def __init__(self, k, k_ground, threshold):
         self.k = k
-
+        self.thresh = threshold
+        self.k_g = k_ground
 
     def get_u(self,sim):
         '''
@@ -493,31 +499,32 @@ class SDD_controller:
         q = sim.getJointAngles()
         u = np.zeros((sim.n))
 
+        smallest_dist = math.inf
+        smallest = None
+
+        gravs = np.zeros((10, 3))
         for ob in sim.obstacles:
-            gravs = np.zeros((10, 3))
             o = sim.getObjState(ob)
-            for i in range(sim.n):
+            for i in [3, 5, 7, 9]:
                 pli = sim.getObjState(sim.robot_link_names[i])
                 dir = ((o - pli)/np.linalg.norm(o - pli))
                 dist = sim.raycastAfterRobotGeometry(pli, dir)
-                if dist > 0:
-                    gravs[i, :] = dir * sim.repulsion_force_func(dist, 20, 0.5) * self.k
-                    gravs[i: 0:2] = 0
-            u += rm.dynamicGrav(gravs, q)
-            gravs = np.zeros((10, 3))
+                if dist < smallest_dist:
+                    smallest_dist = dist
+                    smallest = (ob,o, sim.robot_link_names[i], pli, dist, dir)
+                gravs[i, :] += dir * sim.repulsion_force_func(dist, self.k, self.thresh)
 
         dir = np.array([0, 0, -1])
         for i in range(sim.n):
             pli = sim.getObjState(sim.robot_link_names[i])
             dist = sim.raycast(pli, dir)
-            if dist > 0:
-                gravs[i, :] = dir * sim.repulsion_force_func(dist, 5, 0.5) * self.k
-                gravs[i: 0:2] = 0
-        u += rm.dynamicGrav(gravs, q)
-        u = sim.getNullProjMat(q)@u
-        return u
-            
+            gravs[i, :] += dir * sim.repulsion_force_func(dist, self.k_g, self.thresh) + np.random.randn(3)
 
+        #print(smallest)
+        u = rm.dynamicGrav(gravs, q)
+        u = sim.getNullProjMat(q)@u
+        #print(norm(u))
+        return u
 
 # ARCHIVED controllers
 
