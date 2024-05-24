@@ -153,7 +153,7 @@ class OP_Space_controller:
 
         T_ee=np.array(sim.getObjFrame(sim.tool_name))
 
-        Je,Je_dot,H_dot=sim.getGeometricJacs()
+        Je,Je_dot=sim.getGeometricJacs()
 
         x_tilde=np.zeros(6)
 
@@ -177,22 +177,9 @@ class OP_Space_controller:
         x_dot= Je@dq #dx=JA*dq
         omega_e=x_dot[3:] 
 
-        #get TA() to transform desired quat velocity to angular rate
-        obj_q = sim.d.body(sim.tool_name).xquat
-        # transformation is done at EE
-        q_ee=UnitQuaternion(obj_q).vec #s,v1,v2,v3
 
-        xi0=q_ee[0]; xi1=q_ee[1];xi2=q_ee[2];xi3=q_ee[3] #xi0 = s, ...
-
-        H=np.array([[-xi1,xi0,-xi3,xi2],
-                    [-xi2,xi3,xi0,-xi1],
-                    [-xi3,-xi2,xi1,xi0]])
-
-        #notes 2016: (2.98)
-
-        omega_d=2*H@dxref[3:]
-
-
+        omega_d=(2*Quaternion(dxref[3:])*UnitQuaternion(xref[3:]).conj()).v
+        #omega_d=np.array(R_e).T@omega_d
         #print(np.linalg.norm(omega_d),dxref[3:])
         Delta_omega_e_d=omega_d-omega_e
         x_tilde_dot[3:]=Delta_omega_e_d # (33)
@@ -201,10 +188,7 @@ class OP_Space_controller:
 
         #homebrewed acceleration via product rule
         x_desired_ddot=ddxref[:6]
-        x_desired_ddot[3:]=2*(H_dot@dxref[3:]+H@ddxref[3:])
-     
-        #x_desired_ddot=np.zeros(6)
-
+        x_desired_ddot[3:]= 2*(Quaternion(ddxref[3:])*UnitQuaternion(xref[3:]).conj()-(Quaternion(dxref[3:])*UnitQuaternion(xref[3:]).conj())**2).v   #jia (the goat (30))
 
         #control signal
 
@@ -257,7 +241,7 @@ class OP_Space_Velocity_controller:
 
         T_ee=np.array(sim.getObjFrame(sim.tool_name))
 
-        Je,Je_dot,H_dot=sim.getGeometricJacs()
+        Je,Je_dot=sim.getGeometricJacs()
 
         x_tilde=np.zeros(6)
 
@@ -279,20 +263,10 @@ class OP_Space_Velocity_controller:
         x_dot= Je@dq #dx=JA*dq
         omega_e=x_dot[3:] 
 
-        #get TA() to transform desired quat velocity to angular rate
-        obj_q = sim.d.body(sim.tool_name).xquat
-        # transformation is done at EE
-        q_ee=UnitQuaternion(obj_q).vec #s,v1,v2,v3
-
-        xi0=q_ee[0]; xi1=q_ee[1];xi2=q_ee[2];xi3=q_ee[3] #xi0 = s, ...
-
-        H=np.array([[-xi1,xi0,-xi3,xi2],
-                    [-xi2,xi3,xi0,-xi1],
-                    [-xi3,-xi2,xi1,xi0]])
-
-        #notes 2016: (2.98)
-
-        omega_d=2*H@dxref[3:]
+        
+        omega_d=(2*Quaternion(dxref[3:])*UnitQuaternion(xref[3:]).conj()).v
+        #omega_d=np.array(R_e).T@omega_d
+        #print(np.linalg.norm(omega_d),dxref[3:])
         Delta_omega_e_d=omega_d-omega_e
         x_tilde_dot[3:]=Delta_omega_e_d # (33)
         
@@ -300,9 +274,8 @@ class OP_Space_Velocity_controller:
 
         #homebrewed acceleration via product rule
         x_desired_ddot=ddxref[:6]
-        x_desired_ddot[3:]=2*(H_dot@dxref[3:]+H@ddxref[3:])
-     
-        #x_desired_ddot=np.zeros(6)
+        x_desired_ddot[3:]= 2*(Quaternion(ddxref[3:])*UnitQuaternion(xref[3:]).conj()-(Quaternion(dxref[3:])*UnitQuaternion(xref[3:]).conj())**2).v   #jia (the goat (30))
+
 
 
         #control signal

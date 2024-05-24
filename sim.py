@@ -421,16 +421,6 @@ class simulation:
       mujoco.mj_jacBody(self.m, self.d, jac[:3], jac[3:], id)
       Je=jac[:,-10:] #CHANGES IF DIFFERENT BODIES ADDED
 
-      #get H(ee)
-      obj_q = self.d.body(self.tool_name).xquat
-      q_ee=UnitQuaternion(obj_q).vec #s,v1,v2,v3
-
-      xi0=q_ee[0]; xi1=q_ee[1];xi2=q_ee[2];xi3=q_ee[3] #xi0 = s, ...
-
-      H_pre=np.array([[-xi1,xi0,-xi3,xi2],
-                  [-xi2,xi3,xi0,-xi1],
-                  [-xi3,-xi2,xi1,xi0]])
-
 
       #integrate joint angles for small timestep h
       q=np.copy(self.d.qpos)
@@ -450,19 +440,10 @@ class simulation:
       mujoco.mj_jacBody(self.m, self.d, jach[:3], jach[3:], id)
       Jeh=jach[:,-10:] #CHANGES IF DIFFERENT BODIES ADDEDs
 
-      #get H(ee)
-      obj_q = self.d.body(self.tool_name).xquat
-      q_ee=UnitQuaternion(obj_q).vec #s,v1,v2,v3
-
-      xi0=q_ee[0]; xi1=q_ee[1];xi2=q_ee[2];xi3=q_ee[3] #xi0 = s, ...
-
-      H_post=np.array([[-xi1,xi0,-xi3,xi2],
-                  [-xi2,xi3,xi0,-xi1],
-                  [-xi3,-xi2,xi1,xi0]])
+     
       
       #finite differences
       Je_dot=(Jeh-Je)/h 
-      H_dot=(H_post-H_pre)/h
 
       #reset q back to beginning
       self.d.qpos=q_init
@@ -470,7 +451,7 @@ class simulation:
       mujoco.mj_kinematics(self.m,self.d)
       mujoco.mj_comPos(self.m,self.d)
 
-      return Je,Je_dot,H_dot
+      return Je,Je_dot
 
   def control_loop(self, debug=False):
     '''
