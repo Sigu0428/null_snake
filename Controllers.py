@@ -296,7 +296,8 @@ class OP_Space_Velocity_controller:
         Jo = None
         smallets = None
         links = sim.robot_link_names
-        targets = [links[3],links[7],links[5],links[10],"wrist_1_link2", "shoulder_link2", "forearm_link2"]  #[links[3],links[7],links[5],links[10]] 
+        # targets = [links[3],links[7],links[5],links[10],"wrist_1_link2", "shoulder_link2", "forearm_link2"]  #[links[3],links[7],links[5],links[10]] 
+        targets =  ["wrist_1_link", "shoulder_link2", "upper_arm_link2", "forearm_link2", "wrist_1_link2", "wrist_2_link2", "wrist_3_link2"]
 
         for ob in sim.obstacles:
             for joint in targets: #
