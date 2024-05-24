@@ -490,7 +490,7 @@ class SDD_controller:
         dir = np.array([0, 0, -1])
         for i in range(sim.n):
             pli = sim.getObjState(sim.robot_link_names[i])
-            dist = sim.raycast(pli, dir)
+            dist = sim.raycastAfterRobotGeometry(pli, dir)
             gravs[i, :] += dir * sim.repulsion_force_func(dist, self.k_g, self.thresh) + np.random.randn(3)
 
         #print(smallest)
