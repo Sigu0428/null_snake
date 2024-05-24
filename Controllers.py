@@ -51,7 +51,7 @@ class MaciejewskiEtAl_controller:
                     Jo = Jo[0:3, :]
         
         an = lambda d: np.tanh(-10*(d-0.3))
-        ao = lambda d: 0.2*np.exp(-10*d)/d
+        ao = lambda d: np.exp(-10*d)/d*0.05
 
         dtheta = pinv(Je)@dxe + an(d)*pinv(Jo@(np.eye(10) - pinv(Je)@Je))@(ao(d)*dxo - Jo@pinv(Je)@dxe)
         u = sim.robot.gravload(q) + self.Kp@(dtheta - dq)
@@ -200,28 +200,32 @@ class OP_Space_controller:
 
         return u
     
+
+    
 class OP_Space_Velocity_controller:
     '''
     Follows trajectory better, maybe small probability of instability
     '''
 
-    def __init__(self, kd=1, kp_trans=1,kp_ori=1,Kv=1,lambdaTraj=0.7,lambdaAvoid=0.05):
+    def __init__(self, kd_trans=1, kd_ori=1, kp_trans=1,kp_ori=1,Kv=1,lambdaTraj=0.7,lambdaAvoid=0.05):
         self.kp_trans = kp_trans
         self.kp_ori = kp_ori
-        self.kd = kd
+        self.kd_ori = kd_ori
+        self.kd_trans = kd_trans
         self.kv=Kv
         self.lambdaTraj=lambdaTraj
         self.lambdaAvoid=lambdaAvoid
 
     def get_u(self, sim):
 
-        dim_analytical=7
+        dim_analytical=6
         Kp=np.eye(dim_analytical)
         Kp[:3,:3]=np.eye(int(np.floor(dim_analytical/2)))*self.kp_trans #translational gain
         Kp[3:,3:]=np.eye(int(np.ceil(dim_analytical/2)))*self.kp_ori #orientational gain
 
-        Kd=np.eye(dim_analytical)*self.kd #velocity gain
-
+        Kd=np.eye(dim_analytical)
+        Kd[:3,:3]=np.eye(int(np.floor(dim_analytical/2)))*self.kd_trans #translational gain
+        Kd[3:,3:]=np.eye(int(np.ceil(dim_analytical/2)))*self.kd_ori #orientational gain
         #get references
         with sim.refLock:
             xref=np.copy(sim.xref)
@@ -234,51 +238,64 @@ class OP_Space_Velocity_controller:
 
         T_ee=np.array(sim.getObjFrame(sim.tool_name))
 
-        Je,Je_dot,JA,JA_dot=sim.getAllJacs()
+        Je,Je_dot,H_dot=sim.getGeometricJacs()
 
-        #print(sim.robot.jacob0_dot(q,dq))
-        #print("....................")
-        #print(Je_dot)        
-    
-        # xtilde
-        x_tilde=np.zeros(dim_analytical)
-        # relative translation
+        x_tilde=np.zeros(6)
 
         x_tilde[:3]=xref[:3]-T_ee[:3,3] #translational error
-        
-        # relative orientation by quaternions:
-        #JA,q_ee,JAdot=sim.getAnalyticalJacobian(Je,Je_dot)
-        obj_q = sim.d.body(sim.tool_name).xquat
-        q_ee=UnitQuaternion(obj_q).vec #s,v1,v2,v3
-        q_ref=xref[3:]
-        
-        x_tilde[3:]= q_ref-q_ee#Quaternion(q_ee).conj()*Quaternion(q_ref)
 
-        # velocity error 
+        #AS IN PAPER  
+        R_d=q2r(xref[3:])
+        R_e=sm.SO3(T_ee[:3,:3])
+        R_ed=np.transpose(np.array(R_e))@np.array(R_d) #(24)
+        q_de=UnitQuaternion(R_ed) #"extracted"
+        epsi_e_de=q_de.v
+        epsi_de=np.array(R_e)@epsi_e_de #(34)
 
+
+        x_tilde[3:]= epsi_de
+
+        # velocity error
         x_tilde_dot=np.zeros(dim_analytical) 
 
-        
-        x_dot= JA@dq #dx=JA*dq
-        
-        x_tilde_dot= dxref-x_dot
-        quatvelref=Quaternion(dxref[3:])
-        quatvelee=Quaternion(x_dot[3:])
-        x_tilde_dot[3:]=quatvelref*quatvelee.conj() 
+        x_dot= Je@dq #dx=JA*dq
+        omega_e=x_dot[3:] 
 
-        x_desired_ddot=ddxref #desired acceleration
+        #get TA() to transform desired quat velocity to angular rate
+        obj_q = sim.d.body(sim.tool_name).xquat
+        # transformation is done at EE
+        q_ee=UnitQuaternion(obj_q).vec #s,v1,v2,v3
+
+        xi0=q_ee[0]; xi1=q_ee[1];xi2=q_ee[2];xi3=q_ee[3] #xi0 = s, ...
+
+        H=np.array([[-xi1,xi0,-xi3,xi2],
+                    [-xi2,xi3,xi0,-xi1],
+                    [-xi3,-xi2,xi1,xi0]])
+
+        #notes 2016: (2.98)
+
+        omega_d=2*H@dxref[3:]
+        Delta_omega_e_d=omega_d-omega_e
+        x_tilde_dot[3:]=Delta_omega_e_d # (33)
+        
+        
+
+        #homebrewed acceleration via product rule
+        x_desired_ddot=ddxref[:6]
+        x_desired_ddot[3:]=2*(H_dot@dxref[3:]+H@ddxref[3:])
+     
+        #x_desired_ddot=np.zeros(6)
+
 
         #control signal
 
-        #gq= self.robot.gravload(q)
         B = sim.getM()
-        #C = self.robot.coriolis(q,dq)
-        n=sim.getBiasForces()
-        #print((x_desired_ddot+Kd@x_tilde_dot+Kp@x_tilde-JAdot@dq))
-    
-        JA_inv=JA.T@np.linalg.inv(JA@JA.T+(self.lambdaTraj**2)*np.eye(7)) #DLS inverse
 
-        q_e_ddot=JA_inv@(x_desired_ddot+Kd@x_tilde_dot+Kp@x_tilde-JA_dot@dq) #
+        n=sim.getBiasForces()
+    
+        JE_inv=Je.T@np.linalg.inv(Je@Je.T+(self.lambdaTraj**2)*np.eye(6)) #DLS inverse
+
+        q_e_ddot=JE_inv@(x_desired_ddot+Kd@x_tilde_dot+Kp@x_tilde-Je_dot@dq) #
 
         q_e_dot=dq+q_e_ddot*sim.m.opt.timestep
 
@@ -286,8 +303,10 @@ class OP_Space_Velocity_controller:
         dxo = None
         d = math.inf
         Jo = None
-        links=sim.robot_link_names
-        targets=["wrist_3_link2"]
+        smallets = None
+        links = sim.robot_link_names
+        targets = [links[3],links[7],links[5],links[10]]  #[links[3],links[7],links[5],links[10]] 
+
         for ob in sim.obstacles:
             for joint in targets: #
                 o = sim.getObjState(ob)
@@ -300,27 +319,24 @@ class OP_Space_Velocity_controller:
                     dxo = -dir
                     Jo = sim.getJointJacob(joint)
                     Jo = Jo[0:3, :]
-
-
-
-           
-        thresh=0.1
-        smoothing=10
-        decay=0.
-
+                    smallest = (ob, joint, d)
+        #print(smallest)
+        
+        
+        thresh=0.15 #0.15, simple: 0.35
+        smoothing=30 #10
+    
         an = lambda d: (np.tanh(-smoothing*(d-thresh))+1)/2
         
-        ao = lambda d:  0.1*np.exp(-decay*d)/d * 15
+        ao = lambda d:  0.3/d
 
         dampen=self.lambdaAvoid
         Je_inv=Je.T@np.linalg.inv(Je@Je.T+(dampen**2)*np.eye(6))
         JoJe_inv=(Jo@(np.eye(10) - Je_inv@Je)).T@np.linalg.inv((Jo@(np.eye(10) - Je_inv@Je))@(Jo@(np.eye(10) - Je_inv@Je)).T+(dampen**2)*np.eye(3))
 
         dtheta = q_e_dot+ an(d)*JoJe_inv@(ao(d)*dxo - Jo@q_e_dot)
-
         #dtheta = q_e_dot+ an(d)*np.linalg.pinv((Jo@(np.eye(10) - np.linalg.pinv(Je)@Je)))@(ao(d)*dxo - Jo@q_e_dot)
         u = np.eye(10)*self.kv@(dtheta - dq) + n
-
 
         return u
 

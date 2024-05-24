@@ -30,7 +30,7 @@
 
   <body name="wall" pos="1 0.0 0.0" quat="1 0 0 0">
 
-      <geom type="box" mass="0.4" size="0.18 2 2" rgba="0 1 0 0.5" group="1"/>
+      <geom type="box" mass="0.4" size="0.18 0.8 1.2" rgba="0 1 0 0.5" group="1"/>
       <inertial pos="0 0 0" mass="0.2" diaginertia="0.001 0.001 0.001" /> 
   </body>
 

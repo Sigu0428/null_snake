@@ -74,10 +74,9 @@ class simulation:
     self.jointTorques = [0 ,0,0,0,0,0,0,0,0,0] #simulation reads these and sends to motors at every time step
     self.dt = 1/40 #control loop update rate
     self.robot_link_names = ["shoulder_link", "upper_arm_link", "forearm_link", "wrist_1_link", "ee_link1", "shoulder_link2", "upper_arm_link2", "forearm_link2", "wrist_1_link2", "wrist_2_link2", "wrist_3_link2", "ee_link2"]
-    #self.q0=  [-np.pi*0.765, -np.pi/2.4, np.pi/2.4, -np.pi/2.2, np.pi,-np.pi/1.7,np.pi/1.7 , np.pi/2, -np.pi/2,0]  # 0, -3*np.pi/4, np.pi/3, np.pi, 0, 0, np.pi/3 , 0, 0,0] #home pose
+    # self.q0=  [-np.pi*0.765, -np.pi/2.4, np.pi/2.4, -np.pi/2.2, np.pi,-np.pi/1.7,np.pi/1.7 , np.pi/2, -np.pi/2,0]  # 0, -3*np.pi/4, np.pi/3, np.pi, 0, 0, np.pi/3 , 0, 0,0] #home pose
     self.q0=  [0 , -np.pi/2.4, np.pi/2.4, -np.pi/2.2, np.pi,-np.pi/1.7,np.pi/1.7 , np.pi/2, -np.pi/2,0]  # 0, -3*np.pi/4, np.pi/3, np.pi, 0, 0, np.pi/3 , 0, 0,0] #home pose
 
-    
     
     self.dq0= [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
     self.mojo_internal_mutex = Lock()
@@ -110,8 +109,10 @@ class simulation:
     self.ee_desired_data = []
     self.ee_position_data = []
     self.distance_to_obstacles = []
+    self.contact_points= []
     self.log_u = []
     self.latest_u = np.zeros((10)).T
+    self.time_log=[]
 
     # The list of controllers used
     self.controllers = [] # List of all controllers to be used in the simulation
@@ -334,6 +335,70 @@ class simulation:
       self.mojo_internal_mutex.release()
       return Je
 
+
+
+  def getGeometricJacs(self):
+      
+      h=1e-8
+      #get geometric jacobian from mujoco
+      jac=np.zeros((6,self.m.nv))
+      id=self.m.body("ee_link2").id
+      mujoco.mj_jacBody(self.m, self.d, jac[:3], jac[3:], id)
+      Je=jac[:,-10:] #CHANGES IF DIFFERENT BODIES ADDED
+
+      #get H(ee)
+      obj_q = self.d.body(self.tool_name).xquat
+      q_ee=UnitQuaternion(obj_q).vec #s,v1,v2,v3
+
+      xi0=q_ee[0]; xi1=q_ee[1];xi2=q_ee[2];xi3=q_ee[3] #xi0 = s, ...
+
+      H_pre=np.array([[-xi1,xi0,-xi3,xi2],
+                  [-xi2,xi3,xi0,-xi1],
+                  [-xi3,-xi2,xi1,xi0]])
+
+
+      #integrate joint angles for small timestep h
+      q=np.copy(self.d.qpos)
+      dq=np.copy(self.d.qvel)
+      q_init=np.copy(q)
+      mujoco.mj_integratePos(self.m, q, dq, h)
+      
+      #update qpos with small step
+      self.d.qpos=q
+
+      #update internal model (kinematics etc) with new vals
+      mujoco.mj_kinematics(self.m,self.d)
+      mujoco.mj_comPos(self.m,self.d)
+
+      #get next jacobian
+      jach=np.zeros((6,self.m.nv))
+      mujoco.mj_jacBody(self.m, self.d, jach[:3], jach[3:], id)
+      Jeh=jach[:,-10:] #CHANGES IF DIFFERENT BODIES ADDEDs
+
+      #get H(ee)
+      obj_q = self.d.body(self.tool_name).xquat
+      q_ee=UnitQuaternion(obj_q).vec #s,v1,v2,v3
+
+      xi0=q_ee[0]; xi1=q_ee[1];xi2=q_ee[2];xi3=q_ee[3] #xi0 = s, ...
+
+      H_post=np.array([[-xi1,xi0,-xi3,xi2],
+                  [-xi2,xi3,xi0,-xi1],
+                  [-xi3,-xi2,xi1,xi0]])
+      
+      #finite differences
+      Je_dot=(Jeh-Je)/h 
+      H_dot=(H_post-H_pre)/h
+
+      #reset q back to beginning
+      self.d.qpos=q_init
+      #update internal model (kinematics etc) with new vals
+      mujoco.mj_kinematics(self.m,self.d)
+      mujoco.mj_comPos(self.m,self.d)
+
+      return Je,Je_dot,H_dot
+
+
+
   def getJointJacob(self, joint):
       jac=np.zeros((6,self.m.nv))
       id=self.m.body(joint).id
@@ -463,7 +528,7 @@ class simulation:
     This function logs the data for the robot positions and the desired robot positions.
     The data is logged into the object self.robot_data_plot.
     '''
-
+    log_start=time.time()
     time_start = time.time()
     while True:
       time_elapsed = time.time() - time_start
@@ -474,7 +539,7 @@ class simulation:
         self.log_desired_position()
         self.log_u.append(self.latest_u)
         self.log_distance_to_obstacles()
-
+        self.log_time(time.time()-log_start)
       if time_elapsed > 1:
         self.save_data()
         time_start = time.time()
@@ -499,11 +564,20 @@ class simulation:
     for i, ob in enumerate(self.obstacles):
       o = self.getObjState(ob)
       for j, joint in enumerate(self.robot_link_names):
-        pli = self.getObjState(joint)
-        dir = ((o - pli)/np.linalg.norm(o - pli))
-        dist = self.raycastAfterRobotGeometry(pli, dir)
+        dist = -1 
+        while dist == -1 :
+          pli = self.getObjState(joint)
+          dir = np.array([1,0,0]) # modified for the wall experiment.
+          dist = self.raycastAfterRobotGeometry(pli, dir)
+          if joint == "wrist_3_link2":
+            pass
+          else:
+            break
+
+        
         distance_matrix[j, i] = dist
     self.distance_to_obstacles.append(distance_matrix.copy())
+    self.contact_points.append(self.d.ncon)
 
   def log_desired_position(self):
     '''
@@ -515,6 +589,9 @@ class simulation:
     self.ee_desired_data.append(self.xref)
 
 
+
+  def log_time(self,time):
+      self.time_log.append(time)
 
 
   def save_data(self):
@@ -532,6 +609,12 @@ class simulation:
 
     with open('distances.txt', 'wb') as f:
       pickle.dump(self.distance_to_obstacles, f)
+    
+    with open('contacts.txt', 'wb') as f:
+      pickle.dump(self.contact_points, f)
+
+    with open('timelist.txt', 'wb') as f:
+      pickle.dump(self.time_log, f)
 
 
 
