@@ -528,7 +528,7 @@ class simulation:
     T_ee=np.array(self.getObjFrame(self.tool_name))
     x_ee=np.zeros(7)
     x_ee[:3]=T_ee[:3,3]
-    x_ee[3:]=UnitQuaternion(sm.SE3(T_ee)).vec
+    x_ee[3:]=UnitQuaternion(self.d.body(self.tool_name).xquat)
     self.ee_position_data.append(x_ee)
 
   def log_distance_to_obstacles(self):
