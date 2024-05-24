@@ -66,8 +66,9 @@ if __name__ == "__main__":
 
     
     # ----------------- Defining controllers for the simulator -----------------
-    OP_inverse_controller = OP_Space_controller(kd=150, kp_trans=1000,kp_ori=1000,lambdaTraj=0.5)
-    OP_vel_controller = OP_Space_Velocity_controller(kd=1500, kp_trans=1500,kp_ori=1500,Kv=50,lambdaTraj=0.6,lambdaAvoid=0.05)
+    #OP_inverse_controller = OP_Space_controller(kd=150, kp_trans=10,kp_ori=1000,lambdaTraj=0.5)
+    
+    OP_vel_controller = OP_Space_Velocity_controller(kd_trans=400,kd_ori=40, kp_trans=250,kp_ori=300,Kv=50,lambdaTraj=0.5,lambdaAvoid=0.05)
     #OP_inverse_ZYZ_controller = OP_Space_inverse_ZYZ_controller(kp=10, kd=200)
     g = grav_compensation_controller()
     #joint_space_PDG = Joint_space_PDG_controller(kp=150, kd=50)
@@ -100,7 +101,7 @@ if __name__ == "__main__":
 
     #viapoints.append(sim.robot.fkine(q_viapoint)*sm.SE3.RPY(0,0,np.pi/2)) #zyx rot order
 
-    time.sleep(1)
+    time.sleep(3)
 
     for j in range(len(viapoints)):
         if j==0:

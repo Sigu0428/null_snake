@@ -318,7 +318,6 @@ class OP_Space_Velocity_controller:
                     d = dist
                     dxo = -dir
                     Jo = sim.getJointJacob(joint)
-                    Jo = Jo[0:3, :]
                     smallest = (ob, joint, d)
         #print(smallest)
         
@@ -326,15 +325,34 @@ class OP_Space_Velocity_controller:
         thresh=0.15 #0.15, simple: 0.35
         smoothing=30 #10
     
-        an = lambda d: (np.tanh(-smoothing*(d-thresh))+1)/2
-        
+        an = lambda d: (np.tanh(smoothing*(d-thresh))+1)/2
         ao = lambda d:  0.3/d
+
+
+        Jo_temp = Jo
+        Je_temp = Je
+        Je = Jo_temp
+        Jo = Je_temp
+
 
         dampen=self.lambdaAvoid
         Je_inv=Je.T@np.linalg.inv(Je@Je.T+(dampen**2)*np.eye(6))
-        JoJe_inv=(Jo@(np.eye(10) - Je_inv@Je)).T@np.linalg.inv((Jo@(np.eye(10) - Je_inv@Je))@(Jo@(np.eye(10) - Je_inv@Je)).T+(dampen**2)*np.eye(3))
 
-        dtheta = q_e_dot+ an(d)*JoJe_inv@(ao(d)*dxo - Jo@q_e_dot)
+        Jo_Je_inv_Je = Jo@(np.eye(10) - Je_inv@Je)
+        JoJe_inv=Jo_Je_inv_Je.T@np.linalg.inv(Jo_Je_inv_Je@Jo_Je_inv_Je.T+(dampen**2)*np.eye(6))
+
+        #ao_capped = ao(d)
+        #dtheta = q_e_dot+ an(d)*JoJe_inv@(ao(d)*dxo - Jo@q_e_dot)
+        
+        # Add zeros in orientation part
+
+        dxo_temp = np.zeros(6)
+        dxo_temp[:3] = dxo
+
+        dxe = dxo_temp
+        dxo = Je@q_e_dot
+
+        dtheta = ao(d)*Je_inv@dxe + an(d)*JoJe_inv@(dxo - ao(d)*Jo@Je_inv@dxe)
         #dtheta = q_e_dot+ an(d)*np.linalg.pinv((Jo@(np.eye(10) - np.linalg.pinv(Je)@Je)))@(ao(d)*dxo - Jo@q_e_dot)
         u = np.eye(10)*self.kv@(dtheta - dq) + n
 
