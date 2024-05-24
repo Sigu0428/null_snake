@@ -59,7 +59,7 @@ def follow_trajectory(sim, traj, T=20, steps=500):
 
 
 if __name__ == "__main__":
-    sim=simulation("dens")
+    sim=simulation("dense")
 
 
     if sim.map=="dense":
@@ -77,9 +77,9 @@ if __name__ == "__main__":
 
 
     # ----------------- Adding controllers to the simulator -----------------
-    #sim.controllers.append(OP_vel_controller)
-    sim.controllers.append(OP_inverse_controller)
-    sim.controllers.append(SDD_control)
+    sim.controllers.append(OP_vel_controller)
+    #sim.controllers.append(OP_inverse_controller)
+    #sim.controllers.append(SDD_control)
     #sim.controllers.append(g)
     sim.start() 
 

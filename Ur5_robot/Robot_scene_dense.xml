@@ -19,9 +19,9 @@
   <worldbody>
     <!--	================= Coordinate system ================= /-->
 		<light directional="false" cutoff="135" exponent="10" diffuse=".7 .7 .7" pos="0.4 -0.2 5.5" dir="-0.4 0.2 -5.5" specular=".3 .3 .3"/>
-		<geom group="2" type="cylinder" contype="0" conaffinity="0" fromto="0 0 0 1 0 0" size="0.01" rgba="1 0 0 1"/>
-		<geom group="2" type="cylinder" contype="0" conaffinity="0" fromto="0 0 0 0 1 0" size="0.01" rgba="0 1 0 1"/>
-		<geom group="2" type="cylinder" contype="0" conaffinity="0" fromto="0 0 0 0 0 1" size="0.01" rgba="0 0 1 1"/>
+		<geom group="4" type="cylinder" contype="0" conaffinity="0" fromto="0 0 0 1 0 0" size="0.01" rgba="1 0 0 1"/>
+		<geom group="4" type="cylinder" contype="0" conaffinity="0" fromto="0 0 0 0 1 0" size="0.01" rgba="0 1 0 1"/>
+		<geom group="4" type="cylinder" contype="0" conaffinity="0" fromto="0 0 0 0 0 1" size="0.01" rgba="0 0 1 1"/>
 
     <light pos="0 0 1.5" dir="0 0 -1" directional="true"/>
     <geom name="floor" size="0 0 0.05" type="plane" material="groundplane"/>
@@ -30,7 +30,7 @@
       <geom group="1" name="sphere0" type="sphere" mass="0.4" size="0.18" rgba="0 1 0 0.5"/>
       <inertial pos="0 0 0" mass="0.2" diaginertia="0.001 0.001 0.001" /> 
   </body>
-  <body name="sphere2" pos="0.5502747  0.34330838 0.7758423" quat="1 0 0 0" >
+  <body name="sphere2" pos="0.5202747  0.26330838 0.9058423" quat="1 0 0 0" >
       <geom group="1" name="sphere1" type="sphere" mass="0.4" size="0.18" rgba="1 1 0 0.5"/>
       <inertial pos="0 0 0" mass="0.2" diaginertia="0.001 0.001 0.001" /> 
   </body>

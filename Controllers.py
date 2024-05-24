@@ -296,7 +296,7 @@ class OP_Space_Velocity_controller:
         Jo = None
         smallets = None
         links = sim.robot_link_names
-        targets = [links[3],links[7],links[5],links[10]]  #[links[3],links[7],links[5],links[10]] 
+        targets = [links[3],links[7],links[5],links[10],"wrist_1_link2", "shoulder_link2", "forearm_link2"]  #[links[3],links[7],links[5],links[10]] 
 
         for ob in sim.obstacles:
             for joint in targets: #
@@ -309,7 +309,6 @@ class OP_Space_Velocity_controller:
                     d = dist
                     dxo = -dir
                     Jo = sim.getJointJacob(joint)
-                    Jo = Jo[0:3, :]
                     smallest = (ob, joint, d)
         #print(smallest)
         
@@ -322,27 +321,48 @@ class OP_Space_Velocity_controller:
                 d = dist
                 dxo = -dir
                 Jo = sim.getJointJacob(joint)
-                Jo = Jo[0:3, :]
         
         thresh=0.15 #0.15, simple: 0.35
         smoothing=10 #10
-        decay=20 #20
-
-        an = lambda d: (np.tanh(-smoothing*(d-thresh))+1)/2
+    
+        an = lambda d: (np.tanh(smoothing*(d-thresh))+1)/2
         
-        ao = lambda d:  0.1*np.exp(-decay*d)/d
+
+
+        thresh_OA=0.20 #0.15, simple: 0.35
+        an_OA = lambda d: (np.tanh(-smoothing*(d-thresh_OA))+1)/2
+        ao = lambda d:  0.3/d
+
+        Jo_temp = Jo
+        Je_temp = Je
+        Je = Jo_temp
+        Jo = Je_temp
+
 
         dampen=self.lambdaAvoid
         Je_inv=Je.T@np.linalg.inv(Je@Je.T+(dampen**2)*np.eye(6))
-        JoJe_inv=(Jo@(np.eye(10) - Je_inv@Je)).T@np.linalg.inv((Jo@(np.eye(10) - Je_inv@Je))@(Jo@(np.eye(10) - Je_inv@Je)).T+(dampen**2)*np.eye(3))
 
-        dtheta = q_e_dot+ an(d)*JoJe_inv@(ao(d)*dxo - Jo@q_e_dot)
+        Jo_Je_inv_Je = Jo@(np.eye(10) - Je_inv@Je)
+        JoJe_inv=Jo_Je_inv_Je.T@np.linalg.inv(Jo_Je_inv_Je@Jo_Je_inv_Je.T+(dampen**2)*np.eye(6))
+
+        #ao_capped = ao(d)
+        #dtheta = q_e_dot+ an(d)*JoJe_inv@(ao(d)*dxo - Jo@q_e_dot)
+        
+        # Add zeros in orientation part
+
+        print("an: ", an(d), "ao: ", ao(d))
+
+        dxo_temp = np.zeros(6)
+        dxo_temp[:3] = dxo
+
+        dxe = dxo_temp
+        dxo = Je@q_e_dot
+
+        dtheta = an_OA(d)*ao(d)*Je_inv@dxe + an(d)*JoJe_inv@(dxo - an_OA(d)*ao(d)*Jo@Je_inv@dxe)
         #dtheta = q_e_dot+ an(d)*np.linalg.pinv((Jo@(np.eye(10) - np.linalg.pinv(Je)@Je)))@(ao(d)*dxo - Jo@q_e_dot)
         u = np.eye(10)*self.kv@(dtheta - dq) + n
 
-
         return u
-
 
 class OP_Space_inverse_ZYZ_controller:
   

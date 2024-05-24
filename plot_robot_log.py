@@ -126,7 +126,7 @@ class robot_plot:
     
 
         ax1[2].plot(self.times,dist_mat[:], label='translation', color='blue')
-        ax1[2].axhline(0.35,color = "orange", linestyle = "--", linewidth=1.0)
+        ax1[2].axhline(0.15,color = "orange", linestyle = "--", linewidth=1.0)
         #skibidi toilet
         ohio_rizz=np.reshape(np.array(self.contacts),dist_mat.shape)
         brrr = np.arange(dist_mat.shape[0])
