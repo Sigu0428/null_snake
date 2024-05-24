@@ -27,38 +27,38 @@
     <geom name="floor" size="0 0 0.05" type="plane" material="groundplane"/>
 
   <body name="sphere1" pos="0.76340999 0.50321585 0.12606963" quat="1 0 0 0" >
-      <geom type="sphere" mass="0.4" size="0.18" rgba="0 1 0 0.5" group="1"/>
+      <geom group="1" name="sphere0" type="sphere" mass="0.4" size="0.18" rgba="0 1 0 0.5"/>
       <inertial pos="0 0 0" mass="0.2" diaginertia="0.001 0.001 0.001" /> 
   </body>
   <body name="sphere2" pos="0.5502747  0.34330838 0.7758423" quat="1 0 0 0" >
-      <geom type="sphere" mass="0.4" size="0.18" rgba="1 1 0 0.5" group="1"/>
+      <geom group="1" name="sphere1" type="sphere" mass="0.4" size="0.18" rgba="1 1 0 0.5"/>
       <inertial pos="0 0 0" mass="0.2" diaginertia="0.001 0.001 0.001" /> 
   </body>
   <body name="sphere3" pos="0.95268875 -0.28050018  0.51556448" quat="1 0 0 0" >
-      <geom type="sphere" mass="0.4" size="0.18" rgba="1 0 1 0.5" group="1"/>
+      <geom group="1" name="sphere2" type="sphere" mass="0.4" size="0.18" rgba="1 0 1 0.5"/>
       <inertial pos="0 0 0" mass="0.2" diaginertia="0.001 0.001 0.001" /> 
   </body>
 
   <body name="sphere4" pos="0.78704419 0.88009703 0.74686774" quat="1 0 0 0" >
-      <geom type="sphere" mass="0.4" size="0.18" rgba="1 0 1 0.5" group="1"/>
+      <geom group="1" name="sphere3" type="sphere" mass="0.4" size="0.18" rgba="1 0 1 0.5"/>
       <inertial pos="0 0 0" mass="0.2" diaginertia="0.001 0.001 0.001" /> 
   </body>
   <body name="cyl1" pos="-0.79662621 -0.62081242  0.22099285" quat="0.15848908 -0.36962848  0.60681832 -0.68558554" >
-      <geom type="cylinder" mass="0.4" size="0.1 0.3" rgba="1 1 1 0.5" group="1"/>
+      <geom group="1" name="cylinder1" type="cylinder" mass="0.4" size="0.1 0.3" rgba="1 1 1 0.5"/>
       <inertial pos="0 0 0" mass="0.2" diaginertia="0.001 0.001 0.001" /> 
   </body>
 
   <body name="cyl2" pos="-0.77427365 -0.61406534  0.74329958" quat="0.15848908 -0.36962848  0.60681832 -0.68558554" >
-      <geom type="cylinder" mass="0.4" size="0.1 0.3" rgba="0 0 0 0.5" group="1"/>
+      <geom group="1" name="cylinder2" type="cylinder" mass="0.4" size="0.1 0.3" rgba="0 0 0 0.5"/>
       <inertial pos="0 0 0" mass="0.2" diaginertia="0.001 0.001 0.001" /> 
   </body>
   <body name="cyl3" pos="-1.35370755 -0.89736099  0.51603806" quat="1 0 0 0" >
-      <geom type="cylinder" mass="0.4" size="0.1 0.3" rgba="0 1 0 0.5" group="1"/>
+      <geom group="1" name="cylinder3" type="cylinder" mass="0.4" size="0.1 0.3" rgba="0 1 0 0.5"/>
       <inertial pos="0 0 0" mass="0.2" diaginertia="0.001 0.001 0.001" /> 
   </body>
 
   <body name="cyl4" pos="-1.02849892 -1.23807553  0.53468696" quat="1 0 0 0" >
-      <geom type="cylinder" mass="0.4" size="0.1 0.3" rgba="0 1 1 0.5" group="1"/>
+      <geom group="1" name="cylinder4" type="cylinder" mass="0.4" size="0.1 0.3" rgba="0 1 1 0.5"/>
       <inertial pos="0 0 0" mass="0.2" diaginertia="0.001 0.001 0.001" /> 
   </body>
 

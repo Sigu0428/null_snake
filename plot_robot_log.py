@@ -113,9 +113,16 @@ class robot_plot:
         #dist_mat = np.clip(dist_mat, a_min=0, a_max=None)
         dist_mat = np.min(dist_mat, axis=2)
         #print(dist_mat.shape)
+
+        '''
+        for i, val in enumerate(dist_mat[:,:]):
+            print(val, " -- index", self.times[i])
+        '''
+            
+
         ax1[2].plot(self.times,np.min(dist_mat[:,[3,5,7,10]],axis=1), label='translation', color='red')
         dist_mat = np.min(dist_mat, axis=1)
-   
+
     
 
         ax1[2].plot(self.times,dist_mat[:], label='translation', color='blue')

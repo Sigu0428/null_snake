@@ -19,22 +19,22 @@
   <worldbody>
     <!--	================= Coordinate system ================= /-->
 		<light directional="false" cutoff="135" exponent="10" diffuse=".7 .7 .7" pos="0.4 -0.2 5.5" dir="-0.4 0.2 -5.5" specular=".3 .3 .3"/>
-		<geom group="2" type="cylinder" contype="0" conaffinity="0" fromto="0 0 0 1 0 0" size="0.01" rgba="1 0 0 1"/>
-		<geom group="2" type="cylinder" contype="0" conaffinity="0" fromto="0 0 0 0 1 0" size="0.01" rgba="0 1 0 1"/>
-		<geom group="2" type="cylinder" contype="0" conaffinity="0" fromto="0 0 0 0 0 1" size="0.01" rgba="0 0 1 1"/>
+		<geom group="4" type="cylinder" contype="0" conaffinity="0" fromto="0 0 0 1 0 0" size="0.01" rgba="1 0 0 1"/>
+		<geom group="4" type="cylinder" contype="0" conaffinity="0" fromto="0 0 0 0 1 0" size="0.01" rgba="0 1 0 1"/>
+		<geom group="4" type="cylinder" contype="0" conaffinity="0" fromto="0 0 0 0 0 1" size="0.01" rgba="0 0 1 1"/>
 
     <light pos="0 0 1.5" dir="0 0 -1" directional="true"/>
-    <geom name="floor" size="0 0 0.05" type="plane" material="groundplane"/>
+    <geom group="0" name="floor" size="0 0 0.05" type="plane" material="groundplane"/>
 
   <body name="blockL01" pos="-0.2 0.65 0.3" quat="1 0 0 0">
+      <geom group="1" name="green" type="sphere" mass="0.4" size="0.2" rgba="0 1 0 0.5"/>
 
-      <geom type="sphere" mass="0.4" size="0.2" rgba="0 1 0 0.5" group="1"/>
       <inertial pos="0 0 0" mass="0.2" diaginertia="0.001 0.001 0.001" /> 
   </body>
 
   <body name="test" pos="0.51218776 0.27961369 0.89201046" quat="1 0 0 0" mocap="true">
 
-       <geom type="sphere" mass="0.4" size="0.2" rgba="1 0 0 0.5" group="1"/>
+       <geom group="1" name="red" type="sphere" mass="0.4" size="0.2" rgba="1 0 0 0.5"/>
       <inertial pos="0 0 0" mass="0.2" diaginertia="0.001 0.001 0.001" /> 
   </body>
 

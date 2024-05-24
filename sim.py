@@ -759,7 +759,7 @@ class simulation:
     mujoco_thrd.start()
     
 
-  def raycast(self, pos, dir, mask = np.array([1, 1, 0, 0, 0, 0]).astype(np.uint8)):
+  def raycast(self, pos, dir,mask):
     # source xd: https://github.com/openai/mujoco-worldgen/blob/master/mujoco_worldgen/util/geometry.py
     # and https://mujoco.readthedocs.io/en/stable/APIreference/APIfunctions.html
     c_arr = (c_int*1)(0)
@@ -777,8 +777,13 @@ class simulation:
     return dist
   
   def raycastAfterRobotGeometry(self, pos, dir):
+    #falgs for enabling collisions with geom groups 0=ground, 1=obstacles, 2=robot vizualization geom, 3=robot collision geom
+  
+
     dist = self.raycast(pos, dir, mask = np.array([0, 0, 0, 1, 0, 0]).astype(np.uint8))
     dist = self.raycast(pos + dir*dist, dir, mask = np.array([1, 1, 0, 0, 0, 0]).astype(np.uint8))
+
+
     return max(dist, 0.01)
 
   def repulsion_force_func(self, x, magnetude, decayrate):
