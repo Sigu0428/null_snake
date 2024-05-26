@@ -331,41 +331,27 @@ class OP_Space_Velocity_controller:
         
 
 
-        thresh_OA=0.20 #0.15, simple: 0.35
+        thresh_OA=0.15#0.15, simple: 0.35
         an_OA = lambda d: (np.tanh(-smoothing*(d-thresh_OA))+1)/2
         ao = lambda d:  0.3/d
 
-        Jo_temp = Jo
-        Je_temp = Je
-        Je = Jo_temp
-        Jo = Je_temp
+
+        Jo=Jo[:3,:]
+        Jo_inv=Jo.T@np.linalg.inv(Jo@Jo.T+(self.lambdaAvoid**2)*np.eye(3)) 
 
 
-        dampen=self.lambdaAvoid
-        Je_inv=Je.T@np.linalg.inv(Je@Je.T+(dampen**2)*np.eye(6))
+        MAinner=Je@(np.eye(10)-Jo_inv@Jo)
+ 
+        MA=MAinner.T@np.linalg.inv(MAinner@MAinner.T+(self.lambdaAvoid**2)*np.eye(6)) 
+ 
+        dtheta=an_OA(d)*ao(d)*Jo_inv@dxo+an(d)*MA@(Je@q_e_dot-an_OA(d)*ao(d)*Je@Jo_inv@dxo)
 
-        Jo_Je_inv_Je = Jo@(np.eye(10) - Je_inv@Je)
-        JoJe_inv=Jo_Je_inv_Je.T@np.linalg.inv(Jo_Je_inv_Je@Jo_Je_inv_Je.T+(dampen**2)*np.eye(6))
 
-        #ao_capped = ao(d)
-        #dtheta = q_e_dot+ an(d)*JoJe_inv@(ao(d)*dxo - Jo@q_e_dot)
-        
-        # Add zeros in orientation part
-
-        #print("an: ", an(d), "ao: ", ao(d), "d: ", d)
-
-        dxo_temp = np.zeros(6)
-        dxo_temp[:3] = dxo
-
-        dxe = dxo_temp
-        dxo = Je@q_e_dot
-
-        dtheta = an_OA(d)*ao(d)*Je_inv@dxe + an(d)*JoJe_inv@(dxo - an_OA(d)*ao(d)*Jo@Je_inv@dxe)
         #dtheta = q_e_dot+ an(d)*np.linalg.pinv((Jo@(np.eye(10) - np.linalg.pinv(Je)@Je)))@(ao(d)*dxo - Jo@q_e_dot)
-        if d<0.22:
-            u = np.eye(10)*self.kv@(dtheta - dq) + n
+        if d<0.2:
+            u =np.eye(10)*self.kv@(dtheta - dq)+ n
         else:
-            u = np.eye(10)*self.kv@(q_e_dot - dq) + n
+            u = np.eye(10)*self.kv@(q_e_dot - dq)  + n
 
         return u
 
