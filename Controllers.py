@@ -135,6 +135,7 @@ class OP_Space_controller:
 
         dim_analytical=6
         Kp=np.eye(dim_analytical)
+
         Kp[:3,:3]=np.eye(int(np.floor(dim_analytical/2)))*self.kp_trans #translational gain
         Kp[3:,3:]=np.eye(int(np.ceil(dim_analytical/2)))*self.kp_ori #orientational gain
 
@@ -197,12 +198,12 @@ class OP_Space_controller:
         n=sim.getBiasForces()
     
         JE_inv=Je.T@np.linalg.inv(Je@Je.T+(self.lambdaTraj**2)*np.eye(6)) #DLS inverse
-
-
+        
+        
         y = JE_inv@(x_desired_ddot+Kd@x_tilde_dot+Kp@x_tilde-Je_dot@dq)
-
+        
         u = B@y + n
-
+   
         return u
     
 class OP_Space_Velocity_controller:
@@ -294,10 +295,10 @@ class OP_Space_Velocity_controller:
         dxo = None
         d = math.inf
         Jo = None
-        smallets = None
+        smallets = None  
         links = sim.robot_link_names
         # targets = [links[3],links[7],links[5],links[10],"wrist_1_link2", "shoulder_link2", "forearm_link2"]  #[links[3],links[7],links[5],links[10]] 
-        targets =  ["wrist_1_link", "shoulder_link2", "upper_arm_link2", "forearm_link2", "wrist_1_link2", "wrist_2_link2", "wrist_3_link2"]
+        targets =  ["wrist_1_link", "shoulder_link2", "upper_arm_link2", "forearm_link2", "wrist_1_link2", "wrist_2_link2", "wrist_3_link2"] # 3  5 6 7 8 9 10
 
         for ob in sim.obstacles:
             for joint in targets: #
@@ -324,7 +325,7 @@ class OP_Space_Velocity_controller:
                 Jo = sim.getJointJacob(joint)
         
         thresh=0.15 #0.15, simple: 0.35
-        smoothing=10 #10
+        smoothing=5 #10
     
         an = lambda d: (np.tanh(smoothing*(d-thresh))+1)/2
         
@@ -351,7 +352,7 @@ class OP_Space_Velocity_controller:
         
         # Add zeros in orientation part
 
-        print("an: ", an(d), "ao: ", ao(d))
+        #print("an: ", an(d), "ao: ", ao(d), "d: ", d)
 
         dxo_temp = np.zeros(6)
         dxo_temp[:3] = dxo
@@ -361,7 +362,10 @@ class OP_Space_Velocity_controller:
 
         dtheta = an_OA(d)*ao(d)*Je_inv@dxe + an(d)*JoJe_inv@(dxo - an_OA(d)*ao(d)*Jo@Je_inv@dxe)
         #dtheta = q_e_dot+ an(d)*np.linalg.pinv((Jo@(np.eye(10) - np.linalg.pinv(Je)@Je)))@(ao(d)*dxo - Jo@q_e_dot)
-        u = np.eye(10)*self.kv@(dtheta - dq) + n
+        if d<0.22:
+            u = np.eye(10)*self.kv@(dtheta - dq) + n
+        else:
+            u = np.eye(10)*self.kv@(q_e_dot - dq) + n
 
         return u
 
@@ -512,8 +516,7 @@ class SDD_controller:
         for i in range(sim.n):
             pli = sim.getObjState(sim.robot_link_names[i])
             dist = sim.raycastAfterRobotGeometry(pli, dir)
-            gravs[i, :] += dir * sim.repulsion_force_func(dist, self.k_g, self.thresh) + np.random.randn(3)
-
+            gravs[i, :] += dir * sim.repulsion_force_func(dist, self.k_g, self.thresh) 
         #print(smallest)
         u = rm.dynamicGrav(gravs, q)
         u = sim.getNullProjMat(q)@u

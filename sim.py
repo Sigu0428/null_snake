@@ -528,7 +528,9 @@ class simulation:
     T_ee=np.array(self.getObjFrame(self.tool_name))
     x_ee=np.zeros(7)
     x_ee[:3]=T_ee[:3,3]
-    x_ee[3:]=UnitQuaternion(self.d.body(self.tool_name).xquat)
+
+    x_ee[3:]=-self.d.body(self.tool_name).xquat
+    #x_ee[3:]=UnitQuaternion(sm.SE3(T_ee)).vec
     self.ee_position_data.append(x_ee)
 
   def log_distance_to_obstacles(self):
@@ -608,9 +610,14 @@ class simulation:
 
   def getNullProjMat(self, q): # dynamic projection matrix N, such that tau = tau_main + N@tau_second
     #Je = self.robot.jacob0(q)
+
+    dampen=0.00001
     Je = self.getGeometricJac()
-    Je_inv = np.linalg.pinv(Je)
-    M = self.robot.inertia(q)
+    #Je_inv = np.linalg.pinv(Je)
+    Je_inv=Je.T@np.linalg.inv(Je@Je.T+(dampen**2)*np.eye(6))
+    N = (np.eye(self.n) - Je_inv@Je) # from book
+    #N=np.eye(10)
+
 
     N = (np.eye(self.n) - Je_inv@Je) # from book
 
