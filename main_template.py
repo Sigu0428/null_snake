@@ -59,24 +59,25 @@ def follow_trajectory(sim, traj, T=20, steps=500):
 
 
 if __name__ == "__main__":
-    sim=simulation("dense")
-
+    sim=simulation("dens")
+    #sim.obstacles=[]
 
     if sim.map=="dense":
         sim.obstacles=["sphere1","sphere2","sphere3","sphere4","cyl1","cyl2","cyl3","cyl4"]
     
     # ----------------- Defining controllers for the simulator -----------------
-    OP_inverse_controller = OP_Space_controller(kd_trans=80,kd_ori=80, kp_trans=500,kp_ori=500,lambdaTraj=0.5)  #DEMO OP_Space_controller(kd_trans=80,kd_ori=80, kp_trans=500,kp_ori=500,lambdaTraj=0.5) 
-    OP_vel_controller = OP_Space_Velocity_controller(kd_trans=40,kd_ori=40, kp_trans=280,kp_ori=300,Kv=50,lambdaTraj=0.5,lambdaAvoid=0.05) #DEMO: (kd_trans=40,kd_ori=40, kp_trans=280,kp_ori=300,Kv=50,lambdaTraj=0.5,lambdaAvoid=0.05) 
+    OP_inverse_controller = OP_Space_controller(kd_trans=80,kd_ori=80, kp_trans=600,kp_ori=600,lambdaTraj=0.5)   #DEMO 
+    OP_vel_controller = OP_Space_Velocity_controller(kd_trans=40,kd_ori=40, kp_trans=300,kp_ori=300,Kv=50,lambdaTraj=0.5,lambdaAvoid=0.05) #DEMO: 
     #OP_inverse_ZYZ_controller = OP_Space_inverse_ZYZ_controller(kp=10, kd=200)
-   # g = grav_compensation_controller()
+    g = grav_compensation_controller()
     #joint_space_PDG = Joint_space_PDG_controller(kp=150, kd=50)
-    SDD_control = SDD_controller(k=20,k_ground=15,threshold=0.25) #DEMO SDD_control = SDD_controller(k=20,k_ground=15,threshold=0.35)
+    SDD_control = SDD_controller(k=25,k_ground=15,threshold=0.3) #DEMO SDD_control = SDD_controller(k=20,k_ground=15,threshold=0.3)
     
 
 
 
     # ----------------- Adding controllers to the simulator -----------------
+    
     sim.controllers.append(OP_vel_controller)
     #sim.controllers.append(OP_inverse_controller)
     #sim.controllers.append(SDD_control)
@@ -94,7 +95,7 @@ if __name__ == "__main__":
     q_back=np.copy(sim.q0)
     q_back[0]+=np.pi
     steps=[400,400,400,400,400]
-    T=[10,8,12,10,12,12] #[8,8,8,5,3,4]
+    T=[11,8,11,10,12,12] #[8,8,8,5,3,4]
     #viapoints=[sim.robot.fkine(sim.q0)*sm.SE3.RPY(0,0,np.pi/2)] #zyx rot order
     #viapoints.append(viapoints[0]*sm.SE3.RPY(0,np.pi/2,0)) #zyx rot order
     #viapoints.append(viapoints[1]*sm.SE3.RPY(np.pi/2,0,0)) #zyx rot order
@@ -107,9 +108,9 @@ if __name__ == "__main__":
         viapoints.append(T_snabel*sm.SE3.Ty(-0.1))
     else:
         viapoints=[sim.robot.fkine(q_goal)]
-        viapoints.append(sim.robot.fkine(q_goal2))
+        viapoints.append(sim.robot.fkine(q_back))
         #viapoints.append(sim.robot.fkine(q_goal)*sm.SE3.Tz(0.5)*sm.SE3.RPY(np.pi/2,0,0))
-        viapoints.append(sim.robot.fkine(q_viapoint))
+        
     #viapoints.append(sim.robot.fkine(q_viapoint)*sm.SE3.RPY(0,0,np.pi/2)) #zyx rot order
 
     time.sleep(3)
@@ -165,11 +166,13 @@ if __name__ == "__main__":
                     Tvel[3:,step]=slerpquat*logquat*htd
                     Tacc[3:,step]=slerpquat*logquat*htdd+slerpquat*logquat*logquat*(htd**2)
                     # check if unit quat matters ( prob not)
+        
+                    #print((Tacc[:3,step],((npTrj[:3,-1]-npTrj[:3,0])*htdd)))
         #print(Tvel[3:,:])
         starttime=sim.simtime
-
+     
         while sim.simtime < (starttime+T[j]):
-       
+            #print(sim.simtime)
             i= min(int(((sim.simtime-starttime)/T[j])*steps[j]),steps[j]-1) #read sim time
 
             with sim.refLock:
