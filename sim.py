@@ -569,6 +569,8 @@ class simulation:
           pli = self.getObjState(joint)
           dir = np.array([1,0,0]) # modified for the wall experiment.
           dist = self.raycastAfterRobotGeometry(pli, dir)
+
+
           if joint == "wrist_3_link2":
             pass
           else:
