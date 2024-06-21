@@ -59,7 +59,7 @@ def follow_trajectory(sim, traj, T=20, steps=500):
 
 
 if __name__ == "__main__":
-    sim=simulation("dens")
+    sim=simulation("dense")
     #sim.obstacles=[]
 
     if sim.map=="dense":

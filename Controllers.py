@@ -340,7 +340,7 @@ class OP_Space_Velocity_controller:
         Jo_inv=Jo.T@np.linalg.inv(Jo@Jo.T+(self.lambdaAvoid**2)*np.eye(3)) 
 
 
-        MAinner=Je@(np.eye(10)-Jo_inv@Jo)
+        MAinner=Je@(np.eye(10)-np.linalg.pinv(Jo)@Jo)
  
         MA=MAinner.T@np.linalg.inv(MAinner@MAinner.T+(self.lambdaAvoid**2)*np.eye(6)) 
  
@@ -348,7 +348,7 @@ class OP_Space_Velocity_controller:
 
 
         #dtheta = q_e_dot+ an(d)*np.linalg.pinv((Jo@(np.eye(10) - np.linalg.pinv(Je)@Je)))@(ao(d)*dxo - Jo@q_e_dot)
-        if d<0.2:
+        if d<0.1:
             u =np.eye(10)*self.kv@(dtheta - dq)+ n
         else:
             u = np.eye(10)*self.kv@(q_e_dot - dq)  + n
